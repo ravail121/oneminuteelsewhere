@@ -1,7 +1,7 @@
 """Offline cron job tests. Reuses the same mocked Control Center fixture as its own tests;
 never starts a real background scheduler and never makes a real request."""
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from test_control_center import cc, connect  # noqa: F401 - shared mocked fixture/helper
@@ -9,7 +9,8 @@ from test_control_center import cc, connect  # noqa: F401 - shared mocked fixtur
 from elsewhere.config import Settings, load_settings
 from elsewhere.control_center import ControlCenter, ControlCenterError
 from elsewhere.cron_jobs import SCHEDULE, CronJobs
-from elsewhere.dashboard_store import DashboardStore
+from elsewhere.dashboard_store import DashboardStore, read_json
+from elsewhere.openai_service import save_json
 from elsewhere.youtube_dashboard import YouTubeDashboard
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -94,6 +95,28 @@ def test_fire_is_idempotent_for_the_same_day_and_slot(cc):  # noqa: F811
     second = cron.slot_rows()[1]["project"]["id"]
     assert first == second
     assert len(list(cc.manager.output.glob("dashboard-*"))) == 1
+
+
+def test_a_previous_days_run_shows_as_scheduled_not_carried_over(cc):  # noqa: F811
+    # Once a day rolls over, a slot that already ran yesterday must look freshly scheduled for
+    # today, not still "complete" with yesterday's cost/project attached as if that already
+    # happened today.
+    connect(cc)
+    cron = cron_of(cc)
+    cron.set_enabled(True)
+    cron.fire(6)
+    today_str = datetime.now(cron._tz()).strftime("%Y-%m-%d")
+    today_path = cron._run_path(today_str, 6)
+    record = read_json(today_path)
+    yesterday = datetime.now(cron._tz()) - timedelta(days=1)
+    record["fired_at"] = yesterday.isoformat()
+    save_json(cron._run_path(yesterday.strftime("%Y-%m-%d"), 6), record)
+    today_path.unlink()
+    row = cron.slot_rows()[6]
+    assert row["status"] == "scheduled"
+    assert row["cost"] is None and row["progress"] is None and row["message"] is None
+    assert row["project"] is None
+    assert row["last_fired_at"].date() == yesterday.date()
 
 
 def test_paused_cron_jobs_skip_without_starting_anything(cc):  # noqa: F811

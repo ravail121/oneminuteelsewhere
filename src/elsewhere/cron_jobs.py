@@ -151,12 +151,22 @@ class CronJobs:
         return candidate
 
     def slot_rows(self):
+        today = datetime.now(self._tz()).date()
         rows = []
         for index, (time_str, video_mode) in enumerate(SCHEDULE):
             recent = self._recent_records(index)
             last = recent[0] if recent else None
+            last_fired_at = None
+            if last and last.get("fired_at"):
+                last_fired_at = datetime.fromisoformat(last["fired_at"]).astimezone(self._tz())
+            fired_today = last_fired_at is not None and last_fired_at.date() == today
             status, message, project, cost, progress = "never run", None, None, None, None
-            if last:
+            if last and not fired_today:
+                # A day rolled over since this slot last fired: today's occurrence hasn't run
+                # yet, so show it as freshly scheduled rather than carrying yesterday's
+                # complete/failed status, cost and project forward as if it already happened.
+                status = "scheduled"
+            elif last:
                 if last.get("error"):
                     status, message = "error", last["error"]
                 elif last.get("project_id"):
@@ -170,9 +180,6 @@ class CronJobs:
                     # The project's own detail page (story, scene-by-scene stage progress,
                     # images as they land) — the same page a manually created project uses.
                     project = {"id": last["project_id"], "link": f"/projects/{last['project_id']}"}
-            last_fired_at = None
-            if last and last.get("fired_at"):
-                last_fired_at = datetime.fromisoformat(last["fired_at"]).astimezone(self._tz())
             rows.append({"index": index, "time": time_str, "video_mode": video_mode,
                         "next_fire_time": self.next_fire_time(index), "last_fired_at": last_fired_at,
                         "status": status, "message": message, "project": project,
