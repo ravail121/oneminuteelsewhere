@@ -6,7 +6,7 @@
 {% elif not preview %}<h2>Choose this video's audience and privacy</h2><p>Choose “Made for kids” only when this particular completed video is directed at children. Check the completed video before deciding; this is not inferred from the channel or selected genre. These recurring-cast fiction Shorts are normally a general audience, not specifically directed at children.</p>
 <form method="get"><label>Audience<select name="audience" required><option value="">Choose explicitly</option><option value="general">No, not made for kids — general audience</option><option value="kids">Yes, made for kids</option></select></label>
 <label>Privacy<select name="privacy" required><option value="">Choose explicitly</option><option value="private">Private</option><option value="public">Public</option></select></label>
-<p class="warning">This project has not passed YouTube's required API audit. Google restricts uploads from unaudited API projects to Private and may force a requested Public upload back to Private — silently, or with a policy warning against the API project. Requesting Public here does not guarantee the video will actually be Public; check the saved result and use “Check current status on YouTube” afterward.</p>
+<p class="note">Private and Public are both requested exactly as chosen below. This studio never assumes the request was honored — check the saved result and use “Check current status on YouTube” afterward to see YouTube's actual current value.</p>
 <button>Show exact upload preview</button></form>
 {% else %}<h2>{{ preview.body.snippet.title }}</h2><p class="fine">Title length: {{ preview.body.snippet.title|length }} characters ({{ 'within' if preview.body.snippet.title|length <= 70 else 'over' }} the 70-character target)</p>
 <h3>Exact description</h3><p class="script">{{ preview.body.snippet.description }}</p><p class="fine">Description length: {{ preview.body.snippet.description|length }} characters</p>
@@ -16,7 +16,7 @@
 <dt>Audience</dt><dd>{{ 'Yes, made for kids' if preview.body.status.selfDeclaredMadeForKids else 'No — general audience, not specifically directed at children' }}</dd>
 <dt>Synthetic-media disclosure</dt><dd>containsSyntheticMedia: true — the fixed disclosure sentence is included at the end of the description above</dd>
 <dt>Notify subscribers</dt><dd>false</dd>
-<dt>Privacy requested</dt><dd>{{ preview.body.status.privacyStatus }}{% if preview.body.status.privacyStatus == 'public' %} — this project has not passed YouTube's API audit; Google may still force this video to Private regardless of this request. The result will be checked and shown honestly, never assumed.{% else %} — Google restricts uploads from new unaudited API projects to Private; this studio never claims Public unless YouTube itself returns it.{% endif %}</dd>
+<dt>Privacy requested</dt><dd>{{ preview.body.status.privacyStatus }} — the result will be checked and shown honestly below and on the YouTube page afterward, never assumed.</dd>
 <dt>Video SHA-256</dt><dd>{{ preview.video_sha256 }}</dd></dl>
 <details><summary>Edit metadata</summary>
 <form method="get">

@@ -268,7 +268,7 @@ def test_public_upload_is_accepted_when_google_honors_it(yt):
     assert record["status"] == "complete"
     assert yt.inserts[-1]["body"]["status"]["privacyStatus"] == "public"
     assert record["returned_privacy_status"] == "private"  # this fixture's mock always returns private
-    assert "unaudited-API-project restriction" in record["message"]
+    assert "YouTube returned private even though public was requested" in record["message"]
 
 
 def test_public_upload_message_confirms_when_google_actually_honors_public(yt):
@@ -518,4 +518,4 @@ def test_check_status_route_updates_the_page_and_still_enforces_csrf(yt):
     response = yt.browser.post(f"/youtube/upload/{VIDEO}/check-status", data=data, base_url=BASE)
     assert response.status_code == 303
     page = yt.browser.get("/youtube", base_url=BASE)
-    assert b"public" in page.data and b"never pretends the requested value was honored" in page.data
+    assert b"public" in page.data and b"never assumes the requested value was honored" in page.data

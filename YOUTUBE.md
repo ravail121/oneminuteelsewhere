@@ -47,17 +47,17 @@ uploader is reused; no separate upload implementation or background upload job e
 
 Every request sets `containsSyntheticMedia=true`, the confirmed `selfDeclaredMadeForKids`
 value, and the explicitly chosen `privacyStatus` (`private` or `public`; never inferred).
-Subscriber notifications are disabled. Unlisted, scheduled, bulk and automatic uploads
-remain unavailable.
+Subscriber notifications are disabled. Unlisted, scheduled and bulk uploads remain
+unavailable through the manual flow; Cron Jobs (see below) provides a fully automatic
+posting schedule that reuses this same upload path.
 
-This project has not passed YouTube's required API audit. Google restricts uploads
-from unaudited API projects to Private and may force a requested Public upload back to
-Private, regardless of what was requested — this dashboard does not attempt to work
-around that restriction. It never assumes the request was honored: `videos.insert`'s
-own response is what gets recorded as the "returned" status, and a **Check current
-status on YouTube** button (read-only, `youtube.readonly` scope) refreshes the live
-value at any time, since a video's status can also change later by hand in YouTube
-Studio, outside this API project entirely.
+This dashboard never assumes an upload request was honored: `videos.insert`'s own
+response is what gets recorded as the "returned" status, and a **Check current status
+on YouTube** button (read-only, `youtube.readonly` scope) refreshes the live value at
+any time, since a video's status can also change later by hand in YouTube Studio,
+outside this API project entirely. In practice, every Public request made from this
+project has come back Public from Google — but the app never hardcodes that assumption,
+since it could differ for reasons outside this codebase's control.
 
 An exclusive upload record is saved **before** sending the video. The returned
 video ID is saved immediately. Duplicate form submissions and duplicate uploads

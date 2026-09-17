@@ -58,7 +58,7 @@
 <dt>Local output path</dt><dd>{{ p.output_directory }}</dd>
 </dl>
 {% set actual = r.live_privacy or r.returned_privacy %}
-{% if r.video_id and actual != 'public' %}<p><a href="{{ r.studio_url }}" target="_blank" rel="noopener">Open in YouTube Studio</a> — this project has not passed YouTube's required API audit, so uploads are kept Private; you can manually change it to Public there if YouTube's current policies allow it.</p>{% endif %}
+{% if r.video_id and actual != 'public' %}<p><a href="{{ r.studio_url }}" target="_blank" rel="noopener">Open in YouTube Studio</a> — you can review or manually change this video's privacy there if needed.</p>{% endif %}
 {% else %}<p>YouTube upload has not started yet.</p>{% endif %}
 </section>
 <a href="/control-center">Back to Control Center</a>

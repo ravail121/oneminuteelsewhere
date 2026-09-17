@@ -55,7 +55,7 @@
 <form method="post" action="/control-center/start"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="submission" value="{{ submission }}">
 <p>Automatically selects a category, voice, visual style and story idea (never repeating the previous completed video's choices where avoidable), generates the story, validates it locally, produces the full video, and uploads it to {{ y.expected_handle }} — reusing the exact same functions as the manual workflow, with no story-approval prompt in between.</p>
 <label>Privacy<select name="privacy"><option value="public" selected>Public</option><option value="private">Private</option></select></label>
-<p class="warning">This project has not passed YouTube's required API audit. Requesting Public does not guarantee it: Google may still force the video back to Private. The actual returned and live-checked status is always shown honestly on the run page, and an Open in YouTube Studio link is offered whenever it isn't confirmed Public.</p>
+<p class="note">Whatever privacy is requested is sent to YouTube exactly as chosen. This studio never assumes the request was honored — the actual returned and live-checked status is always shown honestly on the run page, and an Open in YouTube Studio link is offered whenever it isn't confirmed Public.</p>
 <button class="primary">Generate, Create and Upload</button></form>
 {% endif %}
 </section>

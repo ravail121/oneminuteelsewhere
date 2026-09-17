@@ -225,8 +225,8 @@ class YouTubeDashboard:
                     client=client, confirmed_body=preview["body"], confirmed_overrides=overrides, verified_channel_id=channel["id"])
                 honored = result["privacy_status"] == privacy
                 message = (f"Upload completed. YouTube confirmed {result['privacy_status']}." if honored else
-                    f"Upload completed, but YouTube returned {result['privacy_status']} even though {privacy} was requested — "
-                    "likely the unaudited-API-project restriction. Check 'Check current status on YouTube' for the live value.")
+                    f"Upload completed, but YouTube returned {result['privacy_status']} even though {privacy} was requested. "
+                    "Check 'Check current status on YouTube' for the live value.")
                 record.update(status="complete", video_id=result["video_id"], returned_privacy_status=result["privacy_status"],
                               completed_at=utc_now(), message=message)
             except Exception:  # noqa: BLE001 - preserve uncertain outcome without exposing response data

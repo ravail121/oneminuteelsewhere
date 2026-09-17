@@ -519,9 +519,10 @@ def test_upload_goes_only_to_the_verified_channel(cc):
 
 
 def test_one_click_defaults_to_requesting_public_but_never_pretends_google_honored_it(cc):
-    # The mock, like a real unaudited API project, always forces the actual upload to Private
-    # regardless of what was requested. The run must request Public by default (matching the
-    # user's stated preference) while still showing the true, Google-forced Private result.
+    # The mock always returns Private regardless of what was requested, to verify this app
+    # never assumes a request was honored — whatever the real cause of a mismatch might be,
+    # the run must request Public by default (matching the user's stated preference) while
+    # still showing exactly what YouTube itself returned, never the requested value instead.
     connect(cc)
     project_id = cc.control_center.start("m" * 64)
     run = cc.control_center.public_run(project_id)

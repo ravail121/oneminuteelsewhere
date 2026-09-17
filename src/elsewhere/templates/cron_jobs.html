@@ -3,7 +3,7 @@
 <h1>Cron Jobs</h1>
 <section class="card"><h2>{{ 'Running' if enabled else 'Paused' }}</h2>
 <p class="note">10 slots per day, 5 Recurring Cast and 5 Viral Material, spread across the day in the channel's {{ timezone }} timezone. Each slot is exactly the same one-click flow Control Center's own button runs — same monthly limits, same stop-before-approval checks, same cost ledger. Nothing here bypasses those.</p>
-<p class="warning">Every upload from this project is still forced to Private by YouTube until this API project passes Google's audit — cron-posted videos will not get public views or subscribers until that's done. Also, a video upload costs 1600 quota units against a default daily allowance of 10,000: expect roughly the first 6 slots each day to succeed and later ones to show a quota error, unless a quota increase has been requested from Google.</p>
+<p class="warning">A video upload costs 1600 YouTube API quota units against a default daily allowance of 10,000: expect roughly the first 6 slots each day to succeed and later ones to show a quota error, unless a quota increase has been requested from Google. Every previous Public request from this project has come back Public — but each slot's actual, returned privacy is always shown honestly below and on its own run page, never assumed.</p>
 <form method="post" action="/cron-jobs/toggle"><input type="hidden" name="csrf" value="{{ csrf }}">
 <input type="hidden" name="enabled" value="{{ 'no' if enabled else 'yes' }}">
 <button class="primary">{{ 'Pause cron jobs' if enabled else 'Resume cron jobs' }}</button></form>
