@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "one-minute-elsewhere"
+version = "0.1.0"
+description = "Automated original-story production and YouTube publishing pipeline"
+requires-python = ">=3.11"
+dependencies = [
+  "Flask>=3.1,<4",
+  "openai>=2.26.0",
+  "pydantic>=2.10",
+  "PyYAML>=6.0",
+  "Pillow>=11.0",
+  "wordfreq==3.1.1",
+  "Unidecode>=1.4,<2",
+  "google-api-python-client>=2.170",
+  "google-auth-oauthlib>=1.2",
+  "google-auth-httplib2>=0.2",
+  "APScheduler>=3.11,<4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.11"]
+recovery = ["mlx-whisper>=0.4.3,<0.5"]
+
+[project.scripts]
+elsewhere = "elsewhere.cli:main"
+elsewhere-dashboard = "elsewhere.dashboard:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+elsewhere = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

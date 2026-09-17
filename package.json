@@ -1,0 +1,16 @@
+{
+  "name": "one-minute-elsewhere",
+  "version": "1.0.0",
+  "description": "Double-click **start-dashboard.command** in Finder. It opens **http://127.0.0.1:8765** and stays local. Close the dashboard with Ctrl+C in its launcher window. No API call is made on startup, page load, or refresh.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

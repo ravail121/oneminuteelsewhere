@@ -1,0 +1,18 @@
+services:
+  elsewhere:
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./secrets:/app/secrets
+    command: ["doctor"]
+  scheduler:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./secrets:/app/secrets
+    command: ["scheduler"]

@@ -1,0 +1,111 @@
+brand:
+  channel_name: One Minute Elsewhere
+  tagline: One minute. Another reality.
+  language: en
+  timezone: Asia/Karachi
+  visual_style: cinematic realistic everyday domestic mystery, warm practical lamplight,
+    restrained navy shadows, no portals, no science equipment, no text, no logos,
+    no watermark
+models:
+  story: gpt-5.6-luna
+  reviewer: gpt-5.6-luna
+  image: gpt-image-2.5-flare
+  image_quality: medium
+  speech: gpt-4o-mini-tts
+  alignment: whisper-1
+  voice: cedar
+  voice_instructions: Tell this first-person mystery in clear international English,
+    quietly frightened but natural. Vary sentence rhythm, connect thoughts smoothly,
+    avoid robotic pauses after every sentence. Aim for 55 to 58 seconds total, about
+    130 words per minute. Make the last sentence a quiet, unsettling confession with
+    a brief pause before Last night. Read only the exact input, omit no words, add
+    no words. Do not read quotation marks aloud. No screaming, music or sound effects.
+formats:
+  short:
+    width: 1080
+    height: 1920
+    fps: 30
+    target_seconds: 56
+    duration_min_seconds: 52
+    duration_max_seconds: 60
+    narration_words_min: 115
+    narration_words_max: 135
+    scene_count: 8
+    caption_words: 6
+  long:
+    width: 1920
+    height: 1080
+    fps: 30
+    target_seconds: 450
+    narration_words_min: 900
+    narration_words_max: 1050
+    scene_count: 18
+    caption_words: 10
+publishing:
+  category_id: '24'
+  default_privacy: private
+  made_for_kids: false
+  disclose_synthetic_media: true
+  shorts_per_day: 2
+  short_times_local:
+  - 04:00
+  - '21:00'
+  long_weekday: Saturday
+  long_time_local: '22:00'
+  tags:
+  - short story
+  - science fiction
+  - mystery story
+  - original fiction
+  - storytelling
+safety:
+  readability:
+    flesch_reading_ease_min: 75
+    flesch_kincaid_grade_max: 7
+    average_sentence_words_max: 12
+  minimum_category_score: 8
+  similarity_threshold: 0.72
+  minimum_review_score: 8
+  max_generation_attempts: 0
+  max_review_attempts: 1
+  max_sdk_retries: 0
+  blocked_terms:
+  - Harry Potter
+  - Marvel
+  - DC Comics
+  - Star Wars
+  - Disney
+  - Pokemon
+  - Minecraft
+  - Taylor Swift
+  - Elon Musk
+  - Donald Trump
+  forbidden_topics:
+  - real living people
+  - real crimes or tragedies
+  - copyrighted fictional characters or universes
+  - graphic gore
+  - sexual content
+  - minors in dangerous or sexual situations
+  - self-harm instructions
+  - hate or extremist praise
+  - medical, legal, or financial claims presented as fact
+costs:
+  default_allowance_usd: 0.5
+  request_reserves_usd:
+    story: 0.03
+    review: 0.03
+    image: 0.045
+    speech: 0.05
+    alignment: 0.01
+  pricing_as_of: '2026-09-11'
+  pricing_sources:
+    text: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+    image: https://developers.openai.com/api/docs/guides/image-generation
+    speech: https://developers.openai.com/api/docs/models/gpt-4o-mini-tts
+    alignment: https://developers.openai.com/api/docs/models/whisper-1
+paths:
+  database: data/elsewhere.sqlite3
+  output: output
+  youtube_client_secret: secrets/youtube_client_secret.json
+  youtube_token: secrets/youtube_token.json

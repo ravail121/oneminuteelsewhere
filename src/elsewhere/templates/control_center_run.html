@@ -1,0 +1,66 @@
+{% extends 'base.html' %}{% block title %}One-click run · One Minute Elsewhere{% endblock %}
+{% block content %}
+<h1>One-click run</h1>
+<div id="cc-root" data-run="{{ r.project_id }}">
+<section class="card"><h2>Automatic selection</h2>
+<dl>
+<dt>Selected category</dt><dd>{{ r.selection.category }}</dd>
+<dt>Selected voice</dt><dd>{{ r.selection.voice|capitalize }}</dd>
+<dt>Selected narration style</dt><dd>{{ r.selection.narration_style }}</dd>
+<dt>Selected visual style</dt><dd>{{ r.selection.visual_style }}</dd>
+<dt>Random seed</dt><dd>{{ r.selection.seed }}</dd>
+{% if r.selection.idea and r.selection.idea.trend_hint %}<dt>Real-trend inspiration</dt><dd>{{ r.selection.idea.trend_hint }} — fiction only, not a claim this happened</dd>{% endif %}
+</dl>
+<p class="fine">Chosen once, before any paid request, and saved. A browser refresh or server restart reuses these exact choices; no new random options are picked.</p>
+</section>
+
+<section class="card"><h2>Overall progress</h2>
+{% set phases = ['selecting','generating','producing','uploading','checking_status','complete'] %}
+{% set index = phases.index(r.phase) if r.phase in phases else -1 %}
+<progress max="100" value="{{ ((index + 1) / phases|length * 100)|round if index >= 0 else (100 if r.phase in ['failed','cancelled','upload_failed','interrupted'] else 0) }}"></progress>
+<table><thead><tr><th>Stage</th><th>Status</th></tr></thead><tbody>
+<tr><td>Preparing project</td><td>{{ 'Completed' if index >= 0 else 'Waiting' }}</td></tr>
+<tr><td>Selecting creative options</td><td>{{ 'Completed' if index >= 0 else 'Waiting' }}</td></tr>
+<tr><td>Generating story / Validating story</td><td>{{ 'Running' if r.phase == 'generating' else ('Completed' if index > 1 else 'Waiting') }}</td></tr>
+<tr><td>Planning scenes, images, narration, alignment, captions, rendering, validation — see detailed production progress below</td><td>{{ 'Running' if r.phase == 'producing' else ('Completed' if index > 2 else 'Waiting') }}</td></tr>
+<tr><td>Preparing YouTube metadata / Uploading</td><td>{{ 'Running' if r.phase == 'uploading' else ('Completed' if index > 3 else 'Waiting') }}</td></tr>
+<tr><td>YouTube processing</td><td>{{ 'Running' if r.phase == 'checking_status' else ('Completed' if index > 4 else 'Waiting') }}</td></tr>
+<tr><td>Complete</td><td>{{ 'Completed' if r.phase == 'complete' else 'Waiting' }}</td></tr>
+</tbody></table>
+<p id="cc-phase-label"><strong>Phase:</strong> <span id="cc-phase">{{ r.phase|replace('_',' ') }}</span></p>
+<p id="cc-message">{{ r.message }}</p>
+{% if r.phase in ['failed','cancelled','upload_failed'] %}<p class="warning">{{ r.phase|replace('_',' ')|capitalize }}: {{ r.message }}</p>{% endif %}
+{% if r.phase == 'interrupted' %}<p class="warning">The server restarted mid-run. {{ r.message }} You can resume the underlying project from its own page below, or start a fresh one-click run from the Control Center.</p>{% endif %}
+{% if r.phase not in ['complete','failed','cancelled','upload_failed','interrupted'] %}
+<form method="post" action="/control-center/run/{{ r.project_id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Cancel</button></form>
+<p class="fine">Cancellation stops before the next request and keeps everything already completed.</p>
+{% endif %}
+</section>
+</div>
+
+<section class="card"><h2>Detailed production progress</h2>
+<div id="project-root" data-project="{{ p.id }}" data-version="{{ p.version }}" data-status="{{ p.status }}" data-busy="{{ 'yes' if p.busy else 'no' }}" data-review="{{ 'yes' if p.review else 'no' }}">
+{% include 'panel.html' %}
+</div>
+</section>
+
+<section class="card" id="cc-youtube-section"><h2>YouTube upload</h2>
+{% if r.phase in ['uploading','checking_status','complete','upload_failed'] %}
+<dl>
+<dt>Final title</dt><dd id="cc-title">{{ r.title or '—' }}</dd>
+<dt>Description</dt><dd id="cc-description" class="script">{{ r.description or '—' }}</dd>
+<dt>Tags</dt><dd id="cc-tags">{{ (r.tags or [])|join(', ') }}</dd>
+<dt>Upload destination</dt><dd>{{ r.channel.handle if r.channel else y.expected_handle }}</dd>
+<dt>Requested privacy</dt><dd id="cc-requested-privacy">{{ r.requested_privacy or r.privacy or '—' }}</dd>
+<dt>Actual YouTube privacy</dt><dd id="cc-actual-privacy">{{ r.live_privacy or r.returned_privacy or 'Not yet confirmed' }}</dd>
+<dt>YouTube video ID</dt><dd id="cc-video-id">{{ r.video_id or '—' }}</dd>
+<dt>YouTube link</dt><dd id="cc-video-link">{% if r.video_id %}<a href="https://www.youtube.com/watch?v={{ r.video_id }}" target="_blank" rel="noopener">Watch on YouTube</a>{% else %}—{% endif %}</dd>
+<dt>Local output path</dt><dd>{{ p.output_directory }}</dd>
+</dl>
+{% set actual = r.live_privacy or r.returned_privacy %}
+{% if r.video_id and actual != 'public' %}<p><a href="{{ r.studio_url }}" target="_blank" rel="noopener">Open in YouTube Studio</a> — this project has not passed YouTube's required API audit, so uploads are kept Private; you can manually change it to Public there if YouTube's current policies allow it.</p>{% endif %}
+{% else %}<p>YouTube upload has not started yet.</p>{% endif %}
+</section>
+<a href="/control-center">Back to Control Center</a>
+<script defer src="{{ url_for('static', filename='control-center.js') }}"></script>
+{% endblock %}

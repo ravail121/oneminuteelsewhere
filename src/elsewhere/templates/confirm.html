@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block content %}<h1>Generate one story?</h1><section class="card narrow">
+<p>This action uses the <strong>paid OpenAI API</strong>. It will generate one story only—not images, speech, or a video.</p>
+{% if p.video_mode == 'viral' %}<p>Niche: <strong>{{ p.niche }}</strong>. Real, factual content — not fiction. {% if p.trend %}Real topic: <strong>{{ p.trend.title }}</strong> (used only if it fits the niche). {{ p.trend.source }} · {{ p.trend.youtube_status }}. {% else %}No specific trending topic matched this niche; a real, well-known {{ p.niche|lower }} topic will be chosen instead. {% endif %}Free trend lookup: $0.00.</p>{% else %}<p>Newly generated stories feature one or two of Messi, Ronaldo, IShowSpeed and MrBeast as harmless fictional characters, with one AI storyteller—not their real voices.</p>{% endif %}<p>Narration and captions: <strong>{{ p.language_name }}</strong>. Change the language on New Video before generation.</p>
+{% if p.video_mode == 'viral' %}<p>Real-content angle: chosen automatically from the real topic once generated. {{ p.category_rules }}</p>{% else %}<p>Selected category: <strong>{{ p.selected_category }}</strong>{% if p.options.story_type == 'Random' %} (chosen once by Random and saved){% endif %}. {{ p.category_rules }}</p>{% endif %}
+<dl><dt>Story model</dt><dd>{{ model }}</dd><dt>Estimated story cost</dt><dd>About $0.005–$0.015, usage dependent</dd>
+<dt>Conservative request reserve</dt><dd>{{ money(reserve) }}</dd><dt>Remaining project allowance</dt><dd>{{ money(p.remaining_allowance) }}</dd>
+<dt>Maximum project spending</dt><dd>{{ money(p.options.max_cost) }}</dd></dl>
+<p>Generating another story adds to this same allowance. Earlier drafts and costs are kept. A local limit cannot cap a request already accepted by the provider.</p>
+{% if p.cost_blocked %}<p class="warning">An earlier charge is uncertain. Paid work is blocked.</p>{% endif %}
+<form method="post" action="/projects/{{ p.id }}/generate"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="version" value="{{ p.version }}">
+<label class="check"><input type="checkbox" name="paid_consent" value="yes" required> I understand this makes one paid story request.</label>
+<button class="primary" {% if p.busy or p.cost_blocked or p.remaining_allowance < reserve %}disabled{% endif %}>Confirm and Generate One Story</button> <a href="/projects/{{ p.id }}">Go back</a></form></section>{% endblock %}

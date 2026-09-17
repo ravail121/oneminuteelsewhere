@@ -1,0 +1,18 @@
+{
+  "tempo": 0.9,
+  "target_seconds": 54,
+  "pauses": [
+    {"after_word": 5, "expected_word": "me.", "weight": 0.3},
+    {"after_word": 21, "expected_word": "you?”", "weight": 0.4},
+    {"after_word": 34, "expected_word": "phone.", "weight": 0.4},
+    {"after_word": 46, "expected_word": "returned.", "weight": 0.6},
+    {"after_word": 61, "expected_word": "again.", "weight": 0.7},
+    {"after_word": 70, "expected_word": "blink.", "weight": 0.6},
+    {"after_word": 81, "expected_word": "too.", "weight": 0.7},
+    {"after_word": 91, "expected_word": "glass.", "weight": 0.6},
+    {"after_word": 97, "expected_word": "photo.", "weight": 0.5},
+    {"after_word": 106, "expected_word": "wife.", "weight": 0.4},
+    {"after_word": 110, "expected_word": "face.", "weight": 0.5},
+    {"after_word": 112, "expected_word": "night,", "seconds": 1.9}
+  ]
+}

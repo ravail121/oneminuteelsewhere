@@ -1,0 +1,43 @@
+{% extends 'base.html' %}{% block title %}YouTube connection · One Minute Elsewhere{% endblock %}
+{% block content %}
+<h1>YouTube connection</h1>
+<section class="card"><h2>{{ 'Verified channel' if y.verified else ('Connected — not verified' if y.connected else 'Not connected') }}</h2>
+<p class="note">{{ y.message }}</p>
+<dl><dt>Expected channel</dt><dd>{{ y.expected_handle }}</dd><dt>Connected channel name</dt><dd>{{ y.channel.get('name','—') }}</dd><dt>Connected channel handle</dt><dd>{{ y.channel.get('handle','—') }}</dd><dt>Connected channel ID</dt><dd>{{ y.channel.get('id','—') }}</dd><dt>Last checked</dt><dd>{{ y.checked_at or 'Not checked' }}</dd></dl>
+<p><strong>No upload occurs during connection or Test connection.</strong> When Google asks which YouTube channel to use, select <strong>One Minute Elsewhere ({{ y.expected_handle }})</strong>, not your personal channel.</p>
+<p>Connect opens Google in your browser and waits up to three minutes. Return here afterwards. The callback listens only on 127.0.0.1.</p>
+<p>Only these two permissions are requested. Read-only access is used solely to identify and verify the channel:</p><ul>{% for scope in y.scopes %}<li><code>{{ scope }}</code></li>{% endfor %}</ul>
+<div class="actions">
+{% if not y.connected %}<form method="post" action="/youtube/connect"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ nonce }}"><button class="primary" {% if not y.credential_ready %}disabled{% endif %}>Connect YouTube</button></form>{% else %}
+<form method="post" action="/youtube/test"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ nonce }}"><button>Test connection</button></form>
+<form method="post" action="/youtube/disconnect"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ nonce }}"><button>Disconnect</button></form>{% endif %}</div>
+{% if not y.credential_ready %}<p class="warning">The local Desktop OAuth credential has not been installed.</p>{% endif %}
+<p class="fine">Disconnect deletes the local OAuth token; it does not delete videos or revoke Google's account grant. Tokens stay in the ignored secrets directory with owner-only permissions.</p></section>
+<section class="card"><h2>Test uploads</h2><p class="warning">This project has not passed YouTube's required API audit. Google restricts uploads from unaudited API projects to Private and may force a requested Public upload back to Private, silently or otherwise. Private and Public are choosable per upload; unlisted, scheduled, bulk and automatic uploads remain unavailable.</p>
+{% if not y.verified %}<p>Upload controls stay unavailable until the connected channel matches {{ y.expected_handle }}.</p>{% endif %}
+{% for video in videos %}<p>{{ video.title }}{% if y.verified %} — <a href="/youtube/video/{{ video.key }}">Review this video's upload</a>{% endif %}</p>{% else %}<p>No completed videos with passing saved technical validation were found.</p>{% endfor %}</section>
+{% if uploads %}<section class="card"><h2>Saved upload attempts</h2>{% for record in uploads %}
+{% set requested = record.body.status.privacyStatus %}
+{% set live = record.live_privacy_status %}
+{% set best = best_known_privacy(record) %}
+<h3>{{ record.body.snippet.title }}</h3><p>{{ record.status }} — {{ record.message }}</p><p>Video ID: {{ record.video_id or 'Not returned — do not retry an uncertain upload' }}</p><p>Destination: {{ record.channel.handle }} · {{ record.channel.id }}</p>
+<dl><dt>Privacy status requested at upload</dt><dd>{{ requested }}</dd>
+{% if record.video_id %}<dt>Privacy status Google returned at upload</dt><dd>{{ record.returned_privacy_status or 'Not recorded for this older attempt.' }}</dd>
+<dt>Privacy status YouTube reports now</dt><dd>{{ live or 'Not checked yet — click Check current status below.' }}{% if record.live_status_checked_at %} (checked {{ record.live_status_checked_at }}){% endif %}</dd>{% endif %}</dl>
+{% if best == requested %}{% if best == 'private' %}<p class="warning">This project has not passed YouTube's required API audit, so uploads are normally kept Private. YouTube confirms this video is Private.</p>
+{% else %}<p class="warning">YouTube confirms this video is Public. This project has not passed the required YouTube API audit — Google could still restrict or revert a public upload from it at any time, so keep an eye on this video's status.</p>{% endif %}
+{% else %}<p class="warning">{{ requested|capitalize }} was requested, but YouTube reports this video as <strong>{{ best }}</strong>. This project has not passed the required YouTube API audit, so Google may force uploads to Private regardless of what was requested — this studio never pretends the requested value was honored.</p>{% endif %}
+{% if record.video_id %}<p><a href="{{ studio_url(record.video_id) }}" target="_blank" rel="noopener">Open in YouTube Studio</a> — if YouTube's current policies allow it for this project, you can manually change this video's privacy there. No broader permission is requested here to do that automatically.</p>
+<form method="post" action="/youtube/upload/{{ record.video_id }}/check-status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ status_nonces.get(record.video_id, '') }}"><button>Check current status on YouTube</button></form>
+<p class="fine">Read-only, using only the already-granted youtube.readonly scope. Never edits the video.</p>
+<form method="post" action="/youtube/upload/{{ record.video_id }}/set-thumbnail"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ thumbnail_nonces.get(record.video_id, '') }}"><button>Set this project's scene-01 image as thumbnail</button></form>
+<p class="fine">{% if record.thumbnail_set_at %}Custom thumbnail set {{ record.thumbnail_set_at }}. Setting it again replaces it.{% else %}Needs a phone-verified YouTube channel (youtube.com/verify) — fails cleanly and never affects the video itself if the channel isn't verified.{% endif %}</p>
+{% set current = recompute(record) %}
+{% if current %}<details><summary>Current title, description and tags for manual copying</summary>
+<h4>{{ current.snippet.title }}</h4><p class="fine">{{ current.snippet.title|length }} characters</p>
+<p class="script">{{ current.snippet.description }}</p>
+<p class="script">{{ current.snippet.tags|join(', ') }}</p>
+<p class="fine">Recomputed locally under the current metadata rules. Nothing here was sent to Google; copy it into YouTube Studio yourself if you want the live listing to match.</p></details>
+{% endif %}{% endif %}
+{% endfor %}</section>{% endif %}
+{% endblock %}

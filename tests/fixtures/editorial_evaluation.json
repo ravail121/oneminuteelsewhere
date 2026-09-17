@@ -1,0 +1,43 @@
+{
+  "method": "Local Codex editorial comparison, without OpenAI API calls. These judgments are not an independent production review or approval to generate assets.",
+  "selected_title": "The Wedding Photo",
+  "timing_assumption": "120 narration words in approximately 60 seconds. All text-only timings require later measurement against actual speech.",
+  "candidates": [
+    {
+      "title": "The Wedding Photo",
+      "scores": {"simple_language": 9, "opening_hook": 9, "suspense_growth": 9, "emotional_stakes": 9, "final_twist": 9},
+      "editorial_pass": true,
+      "invented_names": [],
+      "evidence": "The opening five words introduce the erased wedding image, about 2.5 seconds. His wife no longer knows him by word 20, about 10 seconds. Escalation: wife reaches for the phone; temporary recovery fails and his hands disappear; his voice disappears and glass separates them. The torn edge is a fair early clue. Entrapment is revealed after 80 percent; the last twelve words, about six seconds, reveal that he deliberately cut the other man out. This reinterprets the apparent innocent victim and torn photo rather than explaining a technical fix. No invented names, jargon, scientific lesson, or early explanation. The exact mechanism stays unknown.",
+      "selection_reason": "Strongest combination of familiar emotional stakes, escalating personal loss, and a planted clue reinterpreted at the end."
+    },
+    {
+      "title": "The Spare Key",
+      "scores": {"simple_language": 9, "opening_hook": 8, "suspense_growth": 8, "emotional_stakes": 8, "final_twist": 7},
+      "editorial_pass": false,
+      "invented_names": [],
+      "evidence": "Early question and threatened marriage; matching shoes, a locked door, and duplicate keys escalate. The late switch and memory reveal suggest repeated artificial husbands, but the ending identifies a familiar mechanism more than it transforms a specific earlier act. It is also unclear why he initially expects the key not to fit. Twist below threshold."
+    },
+    {
+      "title": "The Last Bus",
+      "scores": {"simple_language": 9, "opening_hook": 9, "suspense_growth": 8, "emotional_stakes": 8, "final_twist": 6},
+      "editorial_pass": false,
+      "invented_names": [],
+      "evidence": "The matching driver hooks immediately and locked doors establish danger. Warm coats, the unseen husband, and duplicate passengers escalate. The late death reveal lacks a clear causal connection to the copies. Stacked revelations weaken the planted clue. Narration also has only 113 words, below the required minimum."
+    },
+    {
+      "title": "The Wrong Voice",
+      "scores": {"simple_language": 9, "opening_hook": 9, "suspense_growth": 8, "emotional_stakes": 8, "final_twist": 5},
+      "editorial_pass": false,
+      "invented_names": [],
+      "evidence": "The door asks for a scream immediately; his wife's apparent injury establishes stakes. Her phone outside, contradictory text, and attack on the lock escalate. The ending contains an unearned recording of a scream he never gives, followed by an unexplained arrival. A voice-copying implication is not enough to make the sequence coherent or fairly reinterpret the opening."
+    },
+    {
+      "title": "The Empty Chair",
+      "scores": {"simple_language": 9, "opening_hook": 9, "suspense_growth": 8, "emotional_stakes": 8, "final_twist": 6},
+      "editorial_pass": false,
+      "invented_names": [],
+      "evidence": "A breathing chair hooks immediately; the moving chair and gripping hand introduce danger. Restraint, vanishing food, and the wife's refusal to leave escalate. The final reflection is late but does not clearly explain what earlier event meant differently; a missing face is another strange image rather than a sufficiently supported reversal."
+    }
+  ]
+}

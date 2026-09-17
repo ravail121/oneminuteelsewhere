@@ -1,0 +1,82 @@
+{% extends 'base.html' %}{% block title %}Control Center · One Minute Elsewhere{% endblock %}
+{% block content %}
+<h1>Control Center</h1>
+
+<section class="card"><h2>Channel</h2>
+{% if stats.error %}<p class="warning">{{ stats.error }}</p>{% endif %}
+<dl>
+<dt>Channel name</dt><dd>{{ y.channel.get('name','—') }}</dd>
+<dt>Channel handle</dt><dd>{{ y.channel.get('handle','—') }}</dd>
+<dt>Channel ID</dt><dd>{{ y.channel.get('id','—') }}</dd>
+<dt>YouTube connection status</dt><dd>{{ 'Verified' if y.verified else ('Connected — not verified' if y.connected else 'Not connected') }}</dd>
+<dt>Subscriber count</dt><dd>{% if stats.get('subscriber_count_hidden') %}Hidden by the channel owner{% elif stats.get('subscriber_count') is not none %}{{ stats.subscriber_count }}{% else %}Not fetched yet{% endif %}</dd>
+<dt>Total channel views</dt><dd>{{ stats.view_count if stats.get('view_count') is not none else 'Not fetched yet' }}</dd>
+<dt>YouTube video count</dt><dd>{{ stats.video_count if stats.get('video_count') is not none else 'Not fetched yet' }}</dd>
+<dt>Locally generated video count</dt><dd>{{ overview.generated_count }}</dd>
+<dt>Successfully uploaded video count</dt><dd>{{ overview.uploaded_count }}</dd>
+<dt>Public video count</dt><dd>{{ overview.public_count }}</dd>
+<dt>Private video count</dt><dd>{{ overview.private_count }}</dd>
+<dt>Failed project count</dt><dd>{{ overview.failed_count }}</dd>
+<dt>Current active project</dt><dd>{% if overview.active_project %}<a href="/projects/{{ overview.active_project.id }}">{{ overview.active_project.title }} — {{ overview.active_project.status|replace('_',' ') }}</a>{% else %}None{% endif %}</dd>
+<dt>Last successful upload</dt><dd>{% if overview.last_upload %}{{ overview.last_upload.body.snippet.title }} ({{ overview.last_upload.completed_at }}){% else %}None yet{% endif %}</dd>
+<dt>Last statistics refresh</dt><dd>{{ stats.fetched_at or 'Never' }}</dd>
+</dl>
+<form method="post" action="/control-center/refresh-statistics"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Refresh Statistics</button></form>
+<p class="fine">Cached for 15 minutes so page views do not repeatedly call the API. Uses only the already-granted <code>youtube.readonly</code> scope; no new permission is requested.</p>
+</section>
+
+<section class="card"><h2>Monthly limits</h2>
+<div class="metrics">
+<div>Completed this month<strong>{{ limits.completed_count }} / {{ limits.video_limit }}</strong></div>
+<div>Uploaded this month<strong>{{ limits.uploaded_count }}</strong></div>
+<div>Remaining this month<strong>{{ limits.remaining_videos }}</strong></div>
+<div>Calculated spending<strong>{{ money(limits.spending_usd) }}</strong></div>
+<div>Spending limit<strong>{{ money(limits.spending_limit_usd) }}</strong></div>
+<div>Remaining allowance<strong>{{ money(limits.remaining_allowance_usd) }}</strong></div>
+<div>Average cost / video<strong>{{ money(limits.average_cost_per_video) }}</strong></div>
+<div>Successful projects<strong>{{ limits.successful_count }}</strong></div>
+<div>Failed projects<strong>{{ limits.failed_count }}</strong></div>
+<div>Cancelled projects<strong>{{ limits.cancelled_count }}</strong></div>
+</div>
+<p>Videos completed: {{ limits.completed_count }} / {{ limits.video_limit }}</p><progress max="100" value="{{ limits.video_progress_pct }}"></progress>
+<p>API spending: {{ money(limits.spending_usd) }} / {{ money(limits.spending_limit_usd) }}</p><progress max="100" value="{{ limits.spending_progress_pct }}"></progress>
+{% if limits.completed_hard_stop %}<p class="warning">Hard stop: 200 completed videos reached this month. One-click production is paused until next month.</p>
+{% elif limits.video_warning %}<p class="warning">Warning: {{ limits.completed_count }} completed videos this month (180+ warning threshold).</p>{% endif %}
+{% if limits.spending_hard_stop %}<p class="warning">Hard stop: $40 calculated spending reached this month. One-click production is paused until next month.</p>
+{% elif limits.spending_warning %}<p class="warning">Warning: {{ money(limits.spending_usd) }} calculated spending this month ($35+ warning threshold).</p>{% endif %}
+<p class="fine">Every paid request counts here, including ones from failed or cancelled projects.</p>
+</section>
+
+<section class="card"><h2>One-click production</h2>
+{% if not y.verified %}<p class="warning">Connect and verify {{ y.expected_handle }} on the <a href="/youtube">YouTube page</a> before one-click production.</p>
+{% elif limits.completed_hard_stop or limits.spending_hard_stop %}<p class="warning">Monthly limit reached. One-click production is paused until next month.</p>
+{% elif active_project_id %}<p class="note">A one-click project is already running. <a href="/control-center/run/{{ active_project_id }}">View its progress</a>. The button stays disabled until it finishes or fails.</p>
+{% else %}
+<form method="post" action="/control-center/start"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="submission" value="{{ submission }}">
+<p>Automatically selects a category, voice, visual style and story idea (never repeating the previous completed video's choices where avoidable), generates the story, validates it locally, produces the full video, and uploads it to {{ y.expected_handle }} — reusing the exact same functions as the manual workflow, with no story-approval prompt in between.</p>
+<label>Privacy<select name="privacy"><option value="public" selected>Public</option><option value="private">Private</option></select></label>
+<p class="warning">This project has not passed YouTube's required API audit. Requesting Public does not guarantee it: Google may still force the video back to Private. The actual returned and live-checked status is always shown honestly on the run page, and an Open in YouTube Studio link is offered whenever it isn't confirmed Public.</p>
+<button class="primary">Generate, Create and Upload</button></form>
+{% endif %}
+</section>
+
+<section class="card"><h2>Recent projects and videos</h2>
+<div class="actions">
+{% for option, label in [('newest','Newest'),('most_viewed','Most viewed'),('public','Public'),('private','Private'),('failed','Failed'),('in_progress','In progress'),('highest_cost','Highest cost')] %}
+<a class="button{% if sort==option %} primary{% endif %}" href="/control-center?sort={{ option }}">{{ label }}</a>
+{% endfor %}
+</div>
+<div class="table-scroll"><table><thead><tr><th>Thumbnail</th><th>Title</th><th>Category</th><th>Voice</th><th>Visual style</th><th>Status</th><th>Created</th><th>Uploaded</th><th>Privacy</th><th>YouTube status</th><th>Views</th><th>Likes</th><th>Comments</th><th>Cost</th><th>Links</th></tr></thead><tbody>
+{% for row in rows %}<tr>
+<td>{% if row.thumbnail %}<img src="{{ row.thumbnail }}" alt="" width="64">{% endif %}</td>
+<td>{{ row.title }}</td><td>{{ row.category or '—' }}</td><td>{{ (row.voice or '—')|capitalize }}</td><td>{{ row.visual_style or '—' }}</td>
+<td>{{ row.status|replace('_',' ') }}</td><td>{{ row.created_at }}</td><td>{{ row.upload_date or '—' }}</td>
+<td>{{ row.privacy or '—' }}</td><td>{{ row.upload_status or '—' }}</td>
+<td>{{ row.views if row.views is not none else '—' }}</td>
+<td>{{ row.likes if row.likes is not none else '—' }}</td><td>{{ row.comments if row.comments is not none else '—' }}</td>
+<td>{{ money(row.cost) }}</td>
+<td>{% if row.local_link %}<a href="{{ row.local_link }}">Project</a>{% endif %}{% if row.youtube_link %} · <a href="{{ row.youtube_link }}" target="_blank" rel="noopener">YouTube</a>{% endif %}{% if row.upload_link %} · <a href="{{ row.upload_link }}">Upload to YouTube</a>{% endif %}{% if row.resumable %} · <a href="{{ row.local_link }}">Resume</a>{% endif %}</td>
+</tr>{% else %}<tr><td colspan="15">No projects yet. Use New Video or Generate, Create and Upload above.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endblock %}

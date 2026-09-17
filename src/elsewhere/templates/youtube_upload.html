@@ -1,0 +1,37 @@
+{% extends 'base.html' %}{% block content %}
+<h1>Review one test upload</h1>
+<p class="note">Upload titles use English/Roman-script wording plus a relevant label such as Funny Story or Mystery Story. Native titles are romanized locally, not translated; review spelling and edit the title hook if needed. Narration and captions keep their own language. No extra API request is used for titles.</p>
+<section class="card"><video controls preload="metadata" src="/youtube/video/{{ video.key }}/media"></video><p>Exact local video: <code>{{ video.path }}</code></p>
+{% if not y.verified %}<p>Connect and verify {{ y.expected_handle }} first.</p><a href="/youtube">YouTube connection</a>
+{% elif not preview %}<h2>Choose this video's audience and privacy</h2><p>Choose “Made for kids” only when this particular completed video is directed at children. Check the completed video before deciding; this is not inferred from the channel or selected genre. These recurring-cast fiction Shorts are normally a general audience, not specifically directed at children.</p>
+<form method="get"><label>Audience<select name="audience" required><option value="">Choose explicitly</option><option value="general">No, not made for kids — general audience</option><option value="kids">Yes, made for kids</option></select></label>
+<label>Privacy<select name="privacy" required><option value="">Choose explicitly</option><option value="private">Private</option><option value="public">Public</option></select></label>
+<p class="warning">This project has not passed YouTube's required API audit. Google restricts uploads from unaudited API projects to Private and may force a requested Public upload back to Private — silently, or with a policy warning against the API project. Requesting Public here does not guarantee the video will actually be Public; check the saved result and use “Check current status on YouTube” afterward.</p>
+<button>Show exact upload preview</button></form>
+{% else %}<h2>{{ preview.body.snippet.title }}</h2><p class="fine">Title length: {{ preview.body.snippet.title|length }} characters ({{ 'within' if preview.body.snippet.title|length <= 70 else 'over' }} the 70-character target)</p>
+<h3>Exact description</h3><p class="script">{{ preview.body.snippet.description }}</p><p class="fine">Description length: {{ preview.body.snippet.description|length }} characters</p>
+<h3>Tags</h3><p class="script">{{ preview.body.snippet.tags|join(', ') }}</p><p class="fine">Tags length: {{ preview.body.snippet.tags|join(',')|length }} of 500 characters</p>
+<dl><dt>Destination channel</dt><dd>{{ preview.channel.name }} · {{ preview.channel.handle }} · {{ preview.channel.id }}</dd>
+<dt>Category</dt><dd>Entertainment</dd>
+<dt>Audience</dt><dd>{{ 'Yes, made for kids' if preview.body.status.selfDeclaredMadeForKids else 'No — general audience, not specifically directed at children' }}</dd>
+<dt>Synthetic-media disclosure</dt><dd>containsSyntheticMedia: true — the fixed disclosure sentence is included at the end of the description above</dd>
+<dt>Notify subscribers</dt><dd>false</dd>
+<dt>Privacy requested</dt><dd>{{ preview.body.status.privacyStatus }}{% if preview.body.status.privacyStatus == 'public' %} — this project has not passed YouTube's API audit; Google may still force this video to Private regardless of this request. The result will be checked and shown honestly, never assumed.{% else %} — Google restricts uploads from new unaudited API projects to Private; this studio never claims Public unless YouTube itself returns it.{% endif %}</dd>
+<dt>Video SHA-256</dt><dd>{{ preview.video_sha256 }}</dd></dl>
+<details><summary>Edit metadata</summary>
+<form method="get">
+<input type="hidden" name="audience" value="{{ audience }}">
+<input type="hidden" name="privacy" value="{{ privacy }}">
+<label>Title hook — English or Roman-script story wording (category label and #Shorts are added; cast videos also keep this story's own one or two cast names)<br>
+<input type="text" name="title_hook" value="{{ title_hook }}" maxlength="80" size="60"></label><br>
+<label>Description summary — the story sentence(s) before the fixed disclosure<br>
+<textarea name="description_summary" rows="3" cols="60">{{ description_summary }}</textarea></label><br>
+<label>Extra tags, comma-separated — added on top of the permanent base tags<br>
+<input type="text" name="extra_tags" value="{{ extra_tags }}" size="60"></label><br>
+<button>Regenerate preview</button>
+</form>
+</details>
+<p>No upload has started. The next click sends only this video and the metadata shown above to the verified channel. A separate approval is always required; generation never uploads.</p>
+<form method="post" action="/youtube/upload"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ preview.nonce }}"><label><input type="checkbox" name="confirm_upload" value="yes" required> I confirm this exact video, metadata, audience setting, privacy setting and destination for one upload.</label><button class="primary">Upload {{ 'Public' if preview.body.status.privacyStatus == 'public' else 'Private' }} Test</button></form>
+<p>Keep this tab open while uploading. Errors or interruption may leave an uncertain upload; the saved attempt prevents duplicate uploads after refresh or restart.</p>{% endif %}</section>
+<a href="/youtube">Back to YouTube connection</a>{% endblock %}

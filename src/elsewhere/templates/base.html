@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}One Minute Elsewhere{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static',filename='dashboard.css') }}">
+<script defer src="{{ url_for('static',filename='dashboard.js') }}"></script></head>
+<body><header><a class="brand" href="/">One Minute Elsewhere<span>LOCAL SHORTS STUDIO</span></a>
+<nav><a href="/">New Video</a><a href="/history">Project History</a><a href="/youtube">YouTube</a><a href="/control-center">Control Center</a><span class="pill">Local only · Manual approval</span></nav></header>
+<main>{% block content %}{% endblock %}</main>
+<footer>Nothing is uploaded automatically. YouTube uploads require a separate Private test confirmation. API costs are calculated estimates, not confirmed billing. Keys stay on the backend.</footer></body></html>

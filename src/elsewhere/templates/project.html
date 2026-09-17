@@ -1,0 +1,2 @@
+{% extends 'base.html' %}{% block content %}<div id="project-root" data-project="{{ p.id }}" data-version="{{ p.version }}" data-status="{{ p.status }}" data-busy="{{ 'yes' if p.busy else 'no' }}" data-review="{{ 'yes' if p.review else 'no' }}">
+{% include 'panel.html' %}</div>{% endblock %}
