@@ -2,6 +2,7 @@
 import copy
 import json
 import socket
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -504,6 +505,35 @@ def test_invalid_origin_stays_blocked_even_with_a_valid_csrf_token(studio, origi
     assert not list(studio.manager.output.glob("dashboard-*"))
     if origin == "null":
         assert b"refresh the project page" in response.data
+
+
+def test_cleanup_old_output_removes_only_old_finished_projects(tmp_path):
+    # A small always-on server can fill its disk within days at 10 videos/day; cleanup must
+    # remove old finished output but never touch anything in progress or still recent,
+    # regardless of status.
+    settings = Settings(tmp_path, copy.deepcopy(load_settings().raw))
+    manager = DashboardStore(settings, synchronous=True)
+
+    def make_project(id_, *, status, busy, age_days):
+        directory = manager.output / f"dashboard-{id_}"
+        directory.mkdir(parents=True)
+        (directory / "scene-01.png").write_bytes(b"x")
+        created_at = (datetime.now(UTC) - timedelta(days=age_days)).isoformat()
+        save_json(directory / "dashboard-project.json",
+                 {"id": id_, "status": status, "busy": busy, "created_at": created_at})
+        return directory
+
+    old_complete = make_project("a", status="complete", busy=False, age_days=20)
+    old_failed = make_project("b", status="failed", busy=False, age_days=20)
+    old_but_busy = make_project("c", status="running", busy=True, age_days=20)
+    old_but_running = make_project("d", status="running", busy=False, age_days=20)
+    recent_complete = make_project("e", status="complete", busy=False, age_days=1)
+
+    removed = manager.cleanup_old_output(days=14)
+
+    assert set(removed) == {"a", "b"}
+    assert not old_complete.exists() and not old_failed.exists()
+    assert old_but_busy.exists() and old_but_running.exists() and recent_complete.exists()
 
 
 def test_local_origin_still_requires_csrf(studio):

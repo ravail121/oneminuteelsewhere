@@ -6,7 +6,9 @@ import hashlib
 import json
 import re
 import secrets
+import shutil
 import threading
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -38,6 +40,12 @@ DURATIONS = {"50-60": (50, 60), "52-60": (52, 60), "55-60": (55, 60)}
 # Viral Material is deliberately locked to exactly this niche, not "anything trending" — and
 # within it, VIRAL_NICHE_RULES (prompts.py) further locks the topic to GTA6 only.
 VIRAL_NICHES = ("Gaming",)
+# On-disk images/audio/video are the bulk of this app's disk use (a completed project's saved
+# API responses duplicate each generated image as base64, on top of the image file itself); a
+# small always-on server can fill up within days at 10 videos/day. Cleanup only ever removes
+# the local copy of an already-finished (complete or failed) project older than this — never
+# anything in progress, and never the YouTube upload itself, which is unaffected either way.
+OUTPUT_RETENTION_DAYS = 14
 STAGES = [("story_saved", "Story saved"),
           ("image_prompts", "Preparing image prompts")]
 STAGES += [(f"image_{i:02d}", f"Image {i} of 8") for i in range(1, 9)]
@@ -669,6 +677,26 @@ class DashboardStore:
                 "video": (directory / "final.mp4").exists(),
                 "files": [str(p) for p in sorted(directory.iterdir()) if p.is_file() and p.name in
                           {"final.mp4", "story.json", "draft.json", "captions.srt", "alignment.json", "narration.wav", "validation.json", "review.json", "visual-plan.json", "cost-report.json", "narration-performance-plan.json", "narration-instructions.json", "production-metadata.json", "image-prompts.json", "trend-source.json"}]}
+
+    def cleanup_old_output(self, days=OUTPUT_RETENTION_DAYS):
+        """Delete the on-disk output directory (images, audio, video, saved API responses —
+        every byte under output/dashboard-<id>/) for any finished project older than `days`.
+        Never touches a project that's currently generating, and never touches anything on
+        YouTube: an already-completed upload is entirely unaffected by removing the local
+        copy. Returns the list of removed project ids."""
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        removed = []
+        for path in self.output.glob("dashboard-*/dashboard-project.json"):
+            project = read_json(path, {})
+            if project.get("busy") or project.get("status") not in {"complete", "failed"}:
+                continue
+            created_at = project.get("created_at")
+            if not created_at:
+                continue
+            if datetime.fromisoformat(created_at) < cutoff:
+                shutil.rmtree(path.parent, ignore_errors=True)
+                removed.append(project.get("id"))
+        return removed
 
     def history(self):
         rows = []

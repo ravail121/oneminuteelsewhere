@@ -110,6 +110,14 @@ class CronJobs:
                          project_id=None, error=message, manual=manual)
             LOG.warning("Slot %s (%s) did not start: %s", index, video_mode, message)
 
+    def run_daily_cleanup(self):
+        """Removes on-disk output for old finished projects — see DashboardStore.cleanup_old_
+        output. A small always-on server can otherwise fill its disk within days at 10 videos/
+        day; this keeps steady-state usage bounded without touching anything already uploaded."""
+        removed = self.control_center.store.cleanup_old_output()
+        if removed:
+            LOG.info("Daily cleanup removed local output for %d old project(s)", len(removed))
+
     # ---- the real scheduler (production only; never auto-started under test) -------------
     def start_scheduler(self):
         if self.scheduler is not None:
@@ -120,6 +128,9 @@ class CronJobs:
             hour, minute = (int(part) for part in time_str.split(":"))
             scheduler.add_job(self.fire, "cron", args=[index], hour=hour, minute=minute,
                               id=f"cron-slot-{index}", max_instances=1, coalesce=True, misfire_grace_time=3600)
+        # An off-peak slot between the 03:30 and 06:00 video runs.
+        scheduler.add_job(self.run_daily_cleanup, "cron", hour=5, minute=0,
+                          id="daily-cleanup", max_instances=1, coalesce=True, misfire_grace_time=3600)
         scheduler.start()
         self.scheduler = scheduler
         LOG.info("Cron job scheduler started (%d slots, %s, enabled=%s)",
