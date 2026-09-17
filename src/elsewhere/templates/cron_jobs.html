@@ -1,6 +1,7 @@
 {% extends 'base.html' %}{% block title %}Cron Jobs · One Minute Elsewhere{% endblock %}
 {% block content %}
 <h1>Cron Jobs</h1>
+<p class="note">Dashboard's current time: <strong>{{ now.strftime('%Y-%m-%d %H:%M %Z') }}</strong>. All times on this page, including "Last fired", are in this timezone — compare against your own clock if a row looks unexpectedly old.</p>
 <section class="card"><h2>{{ 'Running' if enabled else 'Paused' }}</h2>
 <p class="note">10 slots per day, 5 Recurring Cast and 5 Viral Material, spread across the day in the channel's {{ timezone }} timezone. Each slot is exactly the same one-click flow Control Center's own button runs — same monthly limits, same stop-before-approval checks, same cost ledger. Nothing here bypasses those.</p>
 <p class="warning">A video upload costs 1600 YouTube API quota units against a default daily allowance of 10,000: expect roughly the first 6 slots each day to succeed and later ones to show a quota error, unless a quota increase has been requested from Google. Every previous Public request from this project has come back Public — but each slot's actual, returned privacy is always shown honestly below and on its own run page, never assumed.</p>
@@ -15,7 +16,7 @@
 <td>{{ row.time }}</td>
 <td>{{ 'Recurring Cast' if row.video_mode == 'messi_ronaldo' else 'Viral Material' }}</td>
 <td>{{ row.next_fire_time.strftime('%Y-%m-%d %H:%M %Z') }}</td>
-<td>{{ row.last_fired_at or '—' }}{% if row.manual %} <span class="fine">(manual)</span>{% endif %}</td>
+<td>{{ row.last_fired_at.strftime('%Y-%m-%d %H:%M %Z') if row.last_fired_at else '—' }}{% if row.manual %} <span class="fine">(manual)</span>{% endif %}</td>
 <td><span class="pill">{{ row.status }}</span></td>
 <td>{% if row.progress is not none %}{{ row.progress }}%{% else %}—{% endif %}</td>
 <td>{{ money(row.cost) if row.cost is not none else '—' }}</td>

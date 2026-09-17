@@ -170,8 +170,11 @@ class CronJobs:
                     # The project's own detail page (story, scene-by-scene stage progress,
                     # images as they land) — the same page a manually created project uses.
                     project = {"id": last["project_id"], "link": f"/projects/{last['project_id']}"}
+            last_fired_at = None
+            if last and last.get("fired_at"):
+                last_fired_at = datetime.fromisoformat(last["fired_at"]).astimezone(self._tz())
             rows.append({"index": index, "time": time_str, "video_mode": video_mode,
-                        "next_fire_time": self.next_fire_time(index), "last_fired_at": last.get("fired_at") if last else None,
+                        "next_fire_time": self.next_fire_time(index), "last_fired_at": last_fired_at,
                         "status": status, "message": message, "project": project,
                         "cost": cost, "progress": progress, "manual": bool(last and last.get("manual"))})
         return rows
@@ -181,11 +184,8 @@ class CronJobs:
         today_str = datetime.now(self._tz()).strftime("%Y-%m-%d")
         total = 0.0
         for row in rows:
-            fired_at = row.get("last_fired_at")
-            if not fired_at:
-                continue
-            fired_local = datetime.fromisoformat(fired_at).astimezone(self._tz())
-            if fired_local.strftime("%Y-%m-%d") == today_str:
+            fired_local = row.get("last_fired_at")
+            if fired_local and fired_local.strftime("%Y-%m-%d") == today_str:
                 total += row.get("cost") or 0
         return round(total, 6)
 
@@ -200,7 +200,8 @@ def register_cron_jobs(app, settings, control_center):
         rows = cron.slot_rows()
         return render_template("cron_jobs.html", rows=rows, enabled=cron.enabled,
                                total_cost_today=cron.today_total_cost(rows),
-                               timezone=settings.brand["timezone"], nonce=request.args.get("nonce", ""))
+                               timezone=settings.brand["timezone"], now=datetime.now(cron._tz()),
+                               nonce=request.args.get("nonce", ""))
 
     @routes.post("/cron-jobs/toggle")
     def toggle():
