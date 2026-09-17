@@ -67,8 +67,12 @@ def cc(tmp_path, monkeypatch):
             self.paid("story_generation")
             state.generation += 1
             story = seed.model_copy(deep=True)
-            story.story_category = self.category
-            story.draft_category_scores = [CategoryScore(name=k, score=9) for k in RUBRICS[self.category][1]]
+            # Viral Material has no fixed pre-selected rubric category: a real model would
+            # choose its own real-content angle and self-assessed score names for it.
+            story.story_category = self.category or "Real Story"
+            story.draft_category_scores = ([CategoryScore(name=k, score=9) for k in RUBRICS[self.category][1]]
+                if self.category in RUBRICS else
+                [CategoryScore(name="accuracy", score=9), CategoryScore(name="clarity", score=9)])
             colors = ["red", "green", "white", "black", "pink", "blue", "gray", "brown"]
             story.scenes = [Scene(narration=f"Messi and Ronaldo checked the {color} box in attempt {state.generation}. "
                                    "They found a small soft blue cloth inside.",
@@ -235,6 +239,24 @@ def test_one_click_flow_calls_the_same_dashboard_store_and_youtube_functions(cc,
     assert len(upload_calls) == 1
     run = cc.control_center.public_run(project_id)
     assert run["phase"] == "complete"
+
+
+def test_one_click_flow_also_supports_viral_material_mode(cc):
+    connect(cc)
+    project_id = cc.control_center.start("v" * 64, video_mode="viral")
+    run = cc.control_center.public_run(project_id)
+    assert run["phase"] == "complete"
+    assert run["video_mode"] == "viral"
+    assert run["selection"] is None  # no fiction rubric/voice/visual-style picker for viral
+    assert cc.manager.load(project_id)["video_mode"] == "viral"
+    assert cc.manager.load(project_id)["niche"] in {"Gaming", "Football"}
+
+
+def test_one_click_rejects_an_invalid_video_mode(cc):
+    connect(cc)
+    from elsewhere.control_center import ControlCenterError
+    with pytest.raises(ControlCenterError, match="valid video mode"):
+        cc.control_center.start("w" * 64, video_mode="not-a-real-mode")
 
 
 # ---- creative selection -----------------------------------------------------------------

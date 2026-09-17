@@ -360,9 +360,11 @@ class ControlCenter:
         return result
 
     # ---- the one-click run itself ------------------------------------------------------
-    def start(self, submission, *, privacy="public"):
+    def start(self, submission, *, privacy="public", video_mode="messi_ronaldo"):
         if privacy not in {"private", "public"}:
             raise ControlCenterError("Choose Private or Public before starting a one-click run.")
+        if video_mode not in {"messi_ronaldo", "viral"}:
+            raise ControlCenterError("Choose a valid video mode before starting a one-click run.")
         with self.lock:
             existing = next((r for r in self._all_runs() if r.get("submission") == submission), None)
             if existing:
@@ -376,13 +378,21 @@ class ControlCenter:
                 raise ControlCenterError(f"Monthly spending limit reached (${MONTHLY_SPEND_LIMIT_USD:.2f} calculated this month). No new project was started.")
             if not self.youtube_studio.status()["verified"]:
                 raise ControlCenterError(f"Connect and verify {youtube.EXPECTED_HANDLE} before one-click production.")
-            choice = select_creative_options(self.store, trend_store=self.trend_store)
-            options = NewVideo(story_type=choice["category"], voice=choice["voice"],
-                                visual_style=choice["visual_style"], idea=choice["idea"]["text"],
-                                max_cost=PER_VIDEO_SPEND_LIMIT_USD)
+            if video_mode == "viral":
+                # Viral Material already auto-picks its own niche/topic/category inside
+                # DashboardStore.create() itself; there is nothing for select_creative_options
+                # (a fiction-rubric/voice/visual-style/idea picker) to usefully add here.
+                choice = None
+                options = NewVideo(video_mode="viral", max_cost=PER_VIDEO_SPEND_LIMIT_USD)
+            else:
+                choice = select_creative_options(self.store, trend_store=self.trend_store)
+                options = NewVideo(story_type=choice["category"], voice=choice["voice"],
+                                    visual_style=choice["visual_style"], idea=choice["idea"]["text"],
+                                    max_cost=PER_VIDEO_SPEND_LIMIT_USD)
             project_id = self.store.create(options, submission)
             self._save_run({"project_id": project_id, "submission": submission, "created_at": utc_now(),
                             "updated_at": utc_now(), "phase": "selecting", "selection": choice,
+                            "video_mode": video_mode,
                             "audience": "general", "privacy": privacy, "cancel_requested": False,
                             "message": "Creative options selected before any paid request."})
             self._set_active(project_id)

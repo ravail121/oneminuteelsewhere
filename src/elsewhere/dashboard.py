@@ -28,6 +28,7 @@ from werkzeug.serving import WSGIRequestHandler, make_server
 from .cli import load_dotenv
 from .config import load_settings
 from .control_center import register_control_center
+from .cron_jobs import register_cron_jobs
 from .dashboard_store import (
     DURATIONS,
     STORY_TYPES,
@@ -94,9 +95,11 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
 
     @app.context_processor
     def common():
+        cron_jobs = app.extensions.get("cron_jobs")
         return {"csrf": session.get("csrf", ""), "story_types": STORY_TYPES, "styles": STYLES,
                 "languages": LANGUAGES, "countries": COUNTRIES,
-                "voices": VOICES, "durations": DURATIONS, "money": lambda v: "unknown" if v is None else f"${v:.6f}"}
+                "voices": VOICES, "durations": DURATIONS, "money": lambda v: "unknown" if v is None else f"${v:.6f}",
+                "cron_active": bool(cron_jobs and cron_jobs.enabled)}
 
     @app.get("/")
     def new_video():
@@ -254,8 +257,9 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
         return render_template("error.html", message=message), status
 
     register_youtube(app, settings, manager)
-    register_control_center(app, settings, manager, app.extensions["youtube_dashboard"],
+    center = register_control_center(app, settings, manager, app.extensions["youtube_dashboard"],
                             trend_store=app.extensions["trend_store"], synchronous=control_center_synchronous)
+    register_cron_jobs(app, settings, center)
     return app
 
 
@@ -291,6 +295,9 @@ def main():
         server = make_server("127.0.0.1", args.port, app, threaded=True, request_handler=QuietRequests)
         address = f"http://127.0.0.1:{args.port}"
         print(f"Local dashboard: {address}\nNo API calls occur until you confirm an action. Ctrl+C stops the dashboard.", flush=True)
+        cron_jobs = app.extensions["cron_jobs"]
+        cron_jobs.start_scheduler()
+        print(f"Cron jobs {'enabled' if cron_jobs.enabled else 'paused'} — see /cron-jobs for the schedule and run history.", flush=True)
         if not args.no_browser:
             webbrowser.open(address)
         try:
@@ -298,6 +305,7 @@ def main():
         except KeyboardInterrupt:
             print("Stopping. Any accepted request will be saved; no next request will start.", flush=True)
         finally:
+            cron_jobs.shutdown()
             app.extensions["dashboard_store"].shutdown()
             server.server_close()
 
