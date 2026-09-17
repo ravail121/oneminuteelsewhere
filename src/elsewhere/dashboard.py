@@ -77,7 +77,11 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
     @app.after_request
     def headers(response):
         response.headers.update({
-            "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+            # form-action allows Google's OAuth endpoint in addition to 'self': the Connect
+            # form (web credential flow) is deliberately redirected there server-side, and
+            # Chromium enforces form-action against that redirect target, not just the form's
+            # own action URL — https://developer.chrome.com/blog/csp-form-action-redirects
+            "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://accounts.google.com",
             # no-referrer can make native form POSTs send Origin: null, even
             # locally. Keep the origin on local forms without leaking referrers
             # to other sites; do not allow opaque origins through the guard.
