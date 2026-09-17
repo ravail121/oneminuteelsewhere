@@ -5,10 +5,28 @@ from pathlib import Path
 
 LANGUAGES = {"en": "English", "hi": "Hindi (हिन्दी)", "ta": "Tamil (தமிழ்)", "ur": "Urdu (اردو)"}
 COUNTRIES = {"IN": "India", "PK": "Pakistan", "US": "United States", "GB": "United Kingdom"}
-FONTS = {"en": ("Helvetica", "/System/Library/Fonts/Helvetica.ttc"),
-         "hi": ("Devanagari Sangam MN", "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc"),
-         "ta": ("Tamil Sangam MN", "/System/Library/Fonts/Supplemental/Tamil Sangam MN.ttc"),
-         "ur": ("Noto Nastaliq Urdu", "/System/Library/Fonts/NotoNastaliq.ttc")}
+# Each language lists (font name, absolute path) candidates in preference order across
+# platforms; the first one whose file actually exists on this machine is used for both the
+# pre-flight check and the caption render, so the two can never disagree about which font
+# is really installed. macOS system fonts first, then the equivalent apt-installable fonts
+# (fonts-dejavu-core, fonts-noto-core, fonts-noto-extra) for a Linux deployment.
+FONTS = {
+    "en": [("Helvetica", "/System/Library/Fonts/Helvetica.ttc"),
+           ("DejaVu Sans", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")],
+    "hi": [("Devanagari Sangam MN", "/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc"),
+           ("Noto Sans Devanagari", "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf")],
+    "ta": [("Tamil Sangam MN", "/System/Library/Fonts/Supplemental/Tamil Sangam MN.ttc"),
+           ("Noto Sans Tamil", "/usr/share/fonts/truetype/noto/NotoSansTamil-Regular.ttf")],
+    "ur": [("Noto Nastaliq Urdu", "/System/Library/Fonts/NotoNastaliq.ttc"),
+           ("Noto Nastaliq Urdu", "/usr/share/fonts/truetype/noto/NotoNastaliqUrdu-Regular.ttf")],
+}
+
+
+def _resolved_font(code):
+    for name, path in FONTS.get(code, []):
+        if Path(path).is_file():
+            return name, path
+    return None
 
 
 def language(settings):
@@ -36,11 +54,14 @@ def caption_font(settings):
     code = language(settings)
     if code not in FONTS:
         raise ValueError("Unsupported narration/caption language")
-    return FONTS[code][0]
+    resolved = _resolved_font(code)
+    if resolved is None:
+        raise ValueError("The selected language needs its local caption font installed before production")
+    return resolved[0]
 
 
 def check_font(code):
-    if not Path(FONTS[code][1]).is_file():
+    if _resolved_font(code) is None:
         raise ValueError("The selected language needs its local caption font installed before production")
 
 
