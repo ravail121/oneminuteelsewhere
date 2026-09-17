@@ -42,6 +42,12 @@ from .languages import COUNTRIES, LANGUAGES
 from .trends import TrendStore
 from .youtube_dashboard import register_youtube
 
+# Loopback-only by default (unchanged). A single additional trusted host can be set via
+# DASHBOARD_TRUSTED_HOST for a deliberately exposed deployment that puts a TLS-terminating,
+# password-authenticated reverse proxy in front of this app — never enabled by default, and
+# the Flask/Werkzeug server itself still only ever binds to 127.0.0.1 (see main()).
+TRUSTED_HOST = os.environ.get("DASHBOARD_TRUSTED_HOST", "")
+
 
 def create_app(settings=None, *, store=None, control_center_synchronous=False):
     settings = settings or load_settings()
@@ -54,13 +60,15 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
 
     @app.before_request
     def local_security():
-        if request.host.split(":")[0] != "127.0.0.1":
-            abort(403, "Use the dashboard's 127.0.0.1 address.")
+        host = request.host.split(":")[0]
+        if host != "127.0.0.1" and (not TRUSTED_HOST or host != TRUSTED_HOST):
+            abort(403, "Use the dashboard's trusted address.")
         session.setdefault("csrf", secrets.token_hex(32))
         if request.method == "POST":
             if request.headers.get("Origin") == "null":
                 abort(403, "Your browser hid this form's origin. Open New Video or refresh the project page, then try again.")
-            if request.headers.get("Origin") not in (None, "http://" + request.host):
+            allowed_origins = {"http://" + request.host, "https://" + request.host}
+            if request.headers.get("Origin") not in ({None} | allowed_origins):
                 abort(403, "Cross-origin requests are not allowed.")
             if not secrets.compare_digest(request.form.get("csrf", ""), session["csrf"]):
                 abort(403, "This form expired. Refresh the page before submitting again.")

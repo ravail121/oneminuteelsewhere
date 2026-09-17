@@ -513,6 +513,32 @@ def test_local_origin_still_requires_csrf(studio):
     assert response.status_code == 403 and studio.calls == []
 
 
+def test_configurable_trusted_host_adds_one_origin_without_removing_127001(tmp_path, monkeypatch):
+    # DASHBOARD_TRUSTED_HOST exists only for a deliberately exposed deployment behind a
+    # TLS-terminating, authenticated reverse proxy — it must add exactly one extra host,
+    # never weaken the default (unset) loopback-only behavior every other test relies on.
+    import elsewhere.dashboard as dashboard_module
+    monkeypatch.setattr(dashboard_module, "TRUSTED_HOST", "72.44.62.213")
+    settings = Settings(tmp_path, copy.deepcopy(load_settings().raw))
+    app = dashboard_module.create_app(settings, store=DashboardStore(settings, synchronous=True))
+    app.testing = True
+    client = app.test_client()
+    trusted = "https://72.44.62.213"
+    assert client.get("/", base_url=trusted).status_code == 200
+    assert client.get("/", base_url="http://127.0.0.1:8765").status_code == 200
+    assert client.get("/", base_url="http://evil.example").status_code == 403
+    with client.session_transaction(base_url=trusted) as session:
+        csrf = session["csrf"]
+    accepted = client.post("/projects", base_url=trusted,
+        headers={"Origin": trusted}, data={"csrf": csrf, "submission": "z" * 64})
+    assert accepted.status_code == 303
+    with client.session_transaction(base_url=trusted) as session:
+        csrf2 = session["csrf"]
+    mismatched = client.post("/projects", base_url=trusted,
+        headers={"Origin": "https://not-the-real-host.example"}, data={"csrf": csrf2, "submission": "y" * 64})
+    assert mismatched.status_code == 403
+
+
 def test_browser_approval_story_and_completion_pages(studio):
     csrf = browser(studio)
     project_id = new(studio)
