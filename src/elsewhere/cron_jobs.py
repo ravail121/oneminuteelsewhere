@@ -207,8 +207,7 @@ def register_cron_jobs(app, settings, control_center):
         rows = cron.slot_rows()
         return render_template("cron_jobs.html", rows=rows, enabled=cron.enabled,
                                total_cost_today=cron.today_total_cost(rows),
-                               timezone=settings.brand["timezone"], now=datetime.now(cron._tz()),
-                               nonce=request.args.get("nonce", ""))
+                               timezone=settings.brand["timezone"], nonce=request.args.get("nonce", ""))
 
     @routes.post("/cron-jobs/toggle")
     def toggle():

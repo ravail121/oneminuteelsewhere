@@ -8,6 +8,7 @@ import secrets
 import subprocess
 import sys
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 
 from flask import (
@@ -99,11 +100,13 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
 
     @app.context_processor
     def common():
+        from zoneinfo import ZoneInfo
         cron_jobs = app.extensions.get("cron_jobs")
         return {"csrf": session.get("csrf", ""), "story_types": STORY_TYPES, "styles": STYLES,
                 "languages": LANGUAGES, "countries": COUNTRIES,
                 "voices": VOICES, "durations": DURATIONS, "money": lambda v: "unknown" if v is None else f"${v:.6f}",
-                "cron_active": bool(cron_jobs and cron_jobs.enabled)}
+                "cron_active": bool(cron_jobs and cron_jobs.enabled),
+                "dashboard_time": datetime.now(ZoneInfo(settings.brand["timezone"]))}
 
     @app.get("/")
     def new_video():
