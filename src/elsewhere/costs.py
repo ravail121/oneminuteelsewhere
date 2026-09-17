@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from .api_diagnostics import safe_error, safe_request_id
+
+LOG = logging.getLogger("elsewhere.costs")
 
 
 class BudgetExceeded(RuntimeError):
@@ -213,6 +216,14 @@ class CostLedger:
                 break
             except Exception as error:  # noqa: BLE001 - every ambiguous paid failure must halt without leaking its payload
                 diagnostic = safe_error(error)
+                if diagnostic["error_type"] == "UnknownError":
+                    # safe_error() only ever recognizes known SDK/network exception types; an
+                    # unrecognized one becomes an undiagnosable "unknown" reason for the user.
+                    # Logging just the Python exception class name (never str(error), args, or
+                    # body — those may hold prompts or other request content) is enough to add
+                    # it to KINDS/CODES next time this class of failure shows up for real.
+                    LOG.warning("paid_call: unrecognized exception type for stage=%s: %s",
+                               stage, type(error).__name__)
                 # A genuine synchronous 4xx means the provider rejected the request before
                 # producing any output: a known $0 charge. Anything without that confirmation
                 # (timeout, connection drop, 5xx) stays ambiguous, is never auto-retried, and
