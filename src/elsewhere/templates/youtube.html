@@ -5,13 +5,14 @@
 <p class="note">{{ y.message }}</p>
 <dl><dt>Expected channel</dt><dd>{{ y.expected_handle }}</dd><dt>Connected channel name</dt><dd>{{ y.channel.get('name','—') }}</dd><dt>Connected channel handle</dt><dd>{{ y.channel.get('handle','—') }}</dd><dt>Connected channel ID</dt><dd>{{ y.channel.get('id','—') }}</dd><dt>Last checked</dt><dd>{{ y.checked_at or 'Not checked' }}</dd></dl>
 <p><strong>No upload occurs during connection or Test connection.</strong> When Google asks which YouTube channel to use, select <strong>One Minute Elsewhere ({{ y.expected_handle }})</strong>, not your personal channel.</p>
-<p>Connect opens Google in your browser and waits up to three minutes. Return here afterwards. The callback listens only on 127.0.0.1.</p>
+{% if y.credential_kind == 'web' %}<p>Connect sends your browser straight to Google's own consent screen, then Google brings you right back here — no waiting, nothing to copy or paste.</p>
+{% else %}<p>Connect opens Google in your browser and waits up to three minutes. Return here afterwards. The callback listens only on 127.0.0.1 — this only works when the browser completing it is on this same machine.</p>{% endif %}
 <p>Only these two permissions are requested. Read-only access is used solely to identify and verify the channel:</p><ul>{% for scope in y.scopes %}<li><code>{{ scope }}</code></li>{% endfor %}</ul>
 <div class="actions">
 {% if not y.connected %}<form method="post" action="/youtube/connect"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ nonce }}"><button class="primary" {% if not y.credential_ready %}disabled{% endif %}>Connect YouTube</button></form>{% else %}
 <form method="post" action="/youtube/test"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ nonce }}"><button>Test connection</button></form>
 <form method="post" action="/youtube/disconnect"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="nonce" value="{{ nonce }}"><button>Disconnect</button></form>{% endif %}</div>
-{% if not y.credential_ready %}<p class="warning">The local Desktop OAuth credential has not been installed.</p>{% endif %}
+{% if not y.credential_ready %}<p class="warning">No OAuth credential is installed yet — add either a Desktop app credential (for a browser on this same machine) or a Web application credential (for a browser anywhere else, e.g. a server you reach over the internet) to <code>secrets/youtube-oauth-client.json</code>.</p>{% endif %}
 <p class="fine">Disconnect deletes the local OAuth token; it does not delete videos or revoke Google's account grant. Tokens stay in the ignored secrets directory with owner-only permissions.</p></section>
 <section class="card"><h2>Test uploads</h2><p class="note">Private and Public are both requested exactly as chosen below; unlisted, scheduled and bulk uploads remain unavailable. This studio never assumes a request was honored — the actual returned and live-checked status are always shown per upload below, not just the requested value.</p>
 {% if not y.verified %}<p>Upload controls stay unavailable until the connected channel matches {{ y.expected_handle }}.</p>{% endif %}

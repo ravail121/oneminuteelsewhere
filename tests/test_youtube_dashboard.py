@@ -328,6 +328,120 @@ def test_web_credentials_and_unsafe_secret_paths_rejected(tmp_path):
         youtube.secret_path(settings, "youtube_token")
 
 
+WEB_CLIENT = {"web": {"client_id": PRIVATE, "client_secret": PRIVATE,
+              "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token"}}
+
+
+def test_validate_web_client_accepts_web_rejects_installed_or_malformed(tmp_path):
+    settings = Settings(tmp_path, copy.deepcopy(load_settings(ROOT / "config.yaml").raw))
+    path = youtube.secret_path(settings, "youtube_client_secret")
+    save_json(path, WEB_CLIENT)
+    youtube.validate_web_client(path)  # must not raise
+    save_json(path, {"installed": {"client_id": PRIVATE, "client_secret": PRIVATE,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token"}})
+    with pytest.raises(youtube.YouTubeError, match="Web application"):
+        youtube.validate_web_client(path)
+    save_json(path, {"web": {"client_id": PRIVATE}})  # missing required fields
+    with pytest.raises(youtube.YouTubeError, match="Web application"):
+        youtube.validate_web_client(path)
+
+
+def test_client_credential_kind_detects_installed_web_or_none(tmp_path):
+    settings = Settings(tmp_path, copy.deepcopy(load_settings(ROOT / "config.yaml").raw))
+    assert youtube.client_credential_kind(settings) is None  # no file yet
+    path = youtube.secret_path(settings, "youtube_client_secret")
+    save_json(path, WEB_CLIENT)
+    assert youtube.client_credential_kind(settings) == "web"
+    save_json(path, {"installed": {"client_id": PRIVATE, "client_secret": PRIVATE,
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token"}})
+    assert youtube.client_credential_kind(settings) == "installed"
+
+
+def test_web_authorization_url_and_callback_exchange_flow(tmp_path, monkeypatch):
+    from google_auth_oauthlib.flow import Flow
+    settings = Settings(tmp_path, copy.deepcopy(load_settings(ROOT / "config.yaml").raw))
+    save_json(youtube.secret_path(settings, "youtube_client_secret"), WEB_CLIENT)
+    captured = {}
+
+    class FakeFlow:
+        def __init__(self, redirect_uri):
+            self.redirect_uri = redirect_uri
+            self.credentials = SimpleNamespace(scopes=youtube.SCOPES, granted_scopes=youtube.SCOPES, to_json=lambda: PRIVATE)
+
+        def authorization_url(self, **kwargs):
+            captured["auth_kwargs"] = kwargs
+            return f"https://accounts.google.com/o/oauth2/v2/auth?state={kwargs['state']}", kwargs["state"]
+
+        def fetch_token(self, authorization_response):
+            captured["authorization_response"] = authorization_response
+
+    def from_client_secrets_file(path, scopes, redirect_uri=None, state=None):
+        captured["scopes"] = scopes
+        return FakeFlow(redirect_uri)
+    monkeypatch.setattr(Flow, "from_client_secrets_file", staticmethod(from_client_secrets_file))
+
+    url = youtube.web_authorization_url(settings, "https://example.test/youtube/oauth2callback", "the-state")
+    assert captured["scopes"] == youtube.SCOPES
+    assert captured["auth_kwargs"]["state"] == "the-state"
+    assert "the-state" in url
+
+    youtube.web_authorize_callback(settings, "https://example.test/youtube/oauth2callback",
+        "https://example.test/youtube/oauth2callback?code=abc&state=the-state")
+    assert captured["authorization_response"].endswith("state=the-state")
+    assert youtube.secret_path(settings, "youtube_token").is_file()
+    # A second attempt while a token already exists must not silently overwrite it.
+    with pytest.raises(youtube.YouTubeError, match="Disconnect"):
+        youtube.web_authorize_callback(settings, "https://example.test/youtube/oauth2callback",
+            "https://example.test/youtube/oauth2callback?code=abc&state=the-state")
+
+
+def test_connect_redirects_straight_to_google_for_a_web_credential(yt, monkeypatch):
+    save_json(youtube.secret_path(yt.settings, "youtube_client_secret"), WEB_CLIENT)
+    monkeypatch.setattr(youtube, "web_authorization_url",
+        lambda settings, redirect_uri, state: f"https://accounts.google.com/mock?state={state}&redirect_uri={redirect_uri}")
+    yt.browser.get("/youtube", base_url=BASE)
+    with yt.browser.session_transaction(base_url=BASE) as session:
+        csrf = session["csrf"]
+    response = yt.browser.post("/youtube/connect", base_url=BASE, data={"csrf": csrf, "nonce": "e" * 64})
+    assert response.status_code == 302
+    assert response.location.startswith("https://accounts.google.com/mock?")
+    assert f"redirect_uri=https://{BASE.split('://')[1]}/youtube/oauth2callback" in response.location
+    assert yt.oauth == 0  # the local-machine flow was never touched
+
+
+def test_oauth2callback_completes_the_connection_for_a_web_credential(yt, monkeypatch):
+    save_json(youtube.secret_path(yt.settings, "youtube_client_secret"), WEB_CLIENT)
+    def fake_authorize_callback(settings, redirect_uri, authorization_response):
+        youtube.save_token(youtube.secret_path(settings, "youtube_token"), PRIVATE)
+        return str(youtube.secret_path(settings, "youtube_token"))
+    monkeypatch.setattr(youtube, "web_authorize_callback", fake_authorize_callback)
+    # web_authorization_url runs for real here (it only builds a URL locally, no network
+    # call), which is what actually issues and saves the state this callback must present back.
+    yt.studio.web_oauth_start("https://example.test/youtube/oauth2callback", "f" * 64)
+    real_state = json.loads((yt.studio.directory / "oauth-state.json").read_text())["state"]
+    response = yt.browser.get(f"/youtube/oauth2callback?code=abc&state={real_state}", base_url=BASE)
+    assert response.status_code == 303
+    assert yt.studio.status()["verified"]
+
+
+def test_oauth2callback_rejects_a_state_mismatch_without_crashing(yt):
+    save_json(youtube.secret_path(yt.settings, "youtube_client_secret"), WEB_CLIENT)
+    response = yt.browser.get("/youtube/oauth2callback?code=abc&state=not-the-real-state", base_url=BASE)
+    assert response.status_code == 303
+    assert not yt.studio.status()["connected"]
+    page = yt.browser.get("/youtube", base_url=BASE)
+    assert b"could not be verified" in page.data
+
+
+def test_oauth2callback_reports_a_google_side_error_without_crashing(yt):
+    save_json(youtube.secret_path(yt.settings, "youtube_client_secret"), WEB_CLIENT)
+    response = yt.browser.get("/youtube/oauth2callback?error=access_denied", base_url=BASE)
+    assert response.status_code == 303
+    page = yt.browser.get("/youtube", base_url=BASE)
+    assert b"access_denied" in page.data
+    assert not yt.studio.status()["connected"]
+
+
 def test_connection_post_is_explicit_and_duplicate_submission_never_reopens_google(yt):
     yt.browser.get("/youtube", base_url=BASE)
     with yt.browser.session_transaction(base_url=BASE) as session:

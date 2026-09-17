@@ -74,6 +74,36 @@ def validate_desktop_client(path):
         raise YouTubeError("The local credential is not a valid Google Desktop installed client")
 
 
+def validate_web_client(path):
+    try:
+        data = json.loads(path.read_text())
+        web = data.get("web")
+        valid = (isinstance(web, dict) and "installed" not in data
+                 and all(isinstance(web.get(k), str) and web[k] for k in ("client_id", "client_secret", "auth_uri", "token_uri"))
+                 and web["auth_uri"] in {"https://accounts.google.com/o/oauth2/auth", "https://accounts.google.com/o/oauth2/v2/auth"}
+                 and web["token_uri"] in {"https://oauth2.googleapis.com/token", "https://accounts.google.com/o/oauth2/token"})
+    except (OSError, ValueError, AttributeError, TypeError):
+        valid = False
+    if not valid:
+        raise YouTubeError("The local credential is not a valid Google Web application client")
+
+
+def client_credential_kind(settings) -> str | None:
+    """'installed' (Desktop app credential; the local-machine OAuth flow below) or 'web' (Web
+    application credential; the browser-redirect flow used for a remotely-reachable
+    deployment) — detected from the actual downloaded Google credential JSON, never guessed,
+    so the flow that actually matches the configured credential is always used."""
+    try:
+        data = json.loads(secret_path(settings, "youtube_client_secret").read_text())
+    except (OSError, ValueError, YouTubeError):
+        return None
+    if "web" in data:
+        return "web"
+    if "installed" in data:
+        return "installed"
+    return None
+
+
 def check_scopes(credentials):
     granted = set(credentials.granted_scopes or credentials.scopes or [])
     if granted != set(SCOPES):
@@ -98,6 +128,50 @@ def authorize(settings: Settings) -> str:
             access_type="offline", prompt="consent select_account", include_granted_scopes="false",
             authorization_prompt_message=None, timeout_seconds=180,
             success_message="Authorization received. Return to the local studio for channel verification. Nothing has been uploaded.")
+        check_scopes(credentials)
+        save_token(token, credentials.to_json())
+    except YouTubeError:
+        raise
+    except Exception:  # noqa: BLE001 - never expose OAuth callback/token payloads
+        raise YouTubeError("Google connection did not complete. It may have been cancelled, timed out, or refused. No upload occurred. Try Connect again.") from None
+    finally:
+        logging.disable(previous_logging)
+    return str(token)
+
+
+def web_authorization_url(settings: Settings, redirect_uri: str, state: str) -> str:
+    """Starts the browser-redirect OAuth flow for a Web application credential: the browser
+    goes to Google directly, no local listener involved, so this works for a server the
+    browser cannot reach a loopback port on (a remote deployment, unlike authorize() above)."""
+    from google_auth_oauthlib.flow import Flow
+
+    secret = secret_path(settings, "youtube_client_secret")
+    validate_web_client(secret)
+    if secret_path(settings, "youtube_token").exists():
+        raise YouTubeError("Disconnect the existing account before connecting again")
+    flow = Flow.from_client_secrets_file(str(secret), SCOPES, redirect_uri=redirect_uri)
+    url, _ = flow.authorization_url(access_type="offline", prompt="consent select_account",
+                                    include_granted_scopes="false", state=state)
+    return url
+
+
+def web_authorize_callback(settings: Settings, redirect_uri: str, authorization_response: str) -> str:
+    """Completes the browser-redirect flow: exchanges the code Google just sent back (in the
+    full callback URL) for tokens. The caller must already have verified the OAuth 'state'
+    parameter matches what was issued in web_authorization_url before calling this."""
+    from google_auth_oauthlib.flow import Flow
+
+    secret = secret_path(settings, "youtube_client_secret")
+    validate_web_client(secret)
+    token = secret_path(settings, "youtube_token")
+    if token.exists():
+        raise YouTubeError("Disconnect the existing account before connecting again")
+    previous_logging = logging.root.manager.disable
+    try:
+        logging.disable(logging.CRITICAL)
+        flow = Flow.from_client_secrets_file(str(secret), SCOPES, redirect_uri=redirect_uri)
+        flow.fetch_token(authorization_response=authorization_response)
+        credentials = flow.credentials
         check_scopes(credentials)
         save_token(token, credentials.to_json())
     except YouTubeError:

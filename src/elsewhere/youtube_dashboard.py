@@ -65,6 +65,7 @@ class YouTubeDashboard:
                 "message": state.get("message", "Not connected. No upload occurs during connection."),
                 "checked_at": state.get("checked_at"), "expected_handle": youtube.EXPECTED_HANDLE,
                 "credential_ready": self.settings.path("youtube_client_secret").is_file(),
+                "credential_kind": youtube.client_credential_kind(self.settings),
                 "scopes": youtube.SCOPES}
 
     def save_connection(self, client):
@@ -112,6 +113,31 @@ class YouTubeDashboard:
             except Exception as error:  # noqa: BLE001 - only app-owned errors reach the browser
                 message = str(error) if isinstance(error, youtube.YouTubeError) else "Google connection could not be verified. No upload occurred. Check the API setup and use Test connection or reconnect."
                 save_json(self.state_path, {"message": message})
+
+    # ---- browser-redirect OAuth (Web application credential; a remote deployment) --------
+    def web_oauth_start(self, redirect_uri, nonce):
+        with self.action(nonce):
+            state = secrets.token_urlsafe(32)
+            save_json(self.directory / "oauth-state.json", {"state": state, "created_at": utc_now()})
+            return youtube.web_authorization_url(self.settings, redirect_uri, state)
+
+    def web_oauth_callback(self, redirect_uri, authorization_response, returned_state, *, google_error=None):
+        state_path = self.directory / "oauth-state.json"
+        pending = read(state_path, {})
+        state_path.unlink(missing_ok=True)
+        save_json(self.state_path, {"message": "Connecting or checking the channel. No upload occurs during this action."})
+        if google_error:
+            save_json(self.state_path, {"message": f"Google did not complete the connection: {google_error}. No upload occurred. Try Connect again."})
+            return
+        if not pending.get("state") or not secrets.compare_digest(pending["state"], returned_state or ""):
+            save_json(self.state_path, {"message": "This connection attempt expired or could not be verified. No upload occurred. Click Connect YouTube again."})
+            return
+        try:
+            youtube.web_authorize_callback(self.settings, redirect_uri, authorization_response)
+            self.save_connection(youtube.youtube_client(self.settings))
+        except Exception as error:  # noqa: BLE001 - only app-owned errors reach the browser
+            message = str(error) if isinstance(error, youtube.YouTubeError) else "Google connection could not be verified. No upload occurred. Check the API setup and use Test connection or reconnect."
+            save_json(self.state_path, {"message": message})
 
     def videos(self):
         """Resolve only completed pipeline artifacts, including preserved CLI videos."""
@@ -321,7 +347,22 @@ def register_youtube(app, settings, manager):
     def connection_action(action):
         if action not in {"connect", "disconnect", "test"}:
             abort(404)
+        if action == "connect" and youtube.client_credential_kind(settings) == "web":
+            # A Web application credential: no local-machine listener works for a browser
+            # that isn't on this same machine, so send the browser straight to Google
+            # instead — it comes right back to /youtube/oauth2callback below on its own.
+            redirect_uri = f"https://{request.host}/youtube/oauth2callback"
+            url = studio.web_oauth_start(redirect_uri, request.form.get("nonce", ""))
+            return redirect(url, code=302)
         studio.connection_action(action, request.form.get("nonce", ""))
+        return redirect("/youtube", code=303)
+
+    @routes.get("/youtube/oauth2callback")
+    def oauth2callback():
+        redirect_uri = f"https://{request.host}/youtube/oauth2callback"
+        authorization_response = request.url.replace("http://", "https://", 1)
+        studio.web_oauth_callback(redirect_uri, authorization_response, request.args.get("state"),
+                                  google_error=request.args.get("error"))
         return redirect("/youtube", code=303)
 
     @routes.get("/youtube/video/<key>")
