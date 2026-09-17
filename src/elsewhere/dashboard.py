@@ -43,11 +43,11 @@ from .languages import COUNTRIES, LANGUAGES
 from .trends import TrendStore
 from .youtube_dashboard import register_youtube
 
-# Loopback-only by default (unchanged). A single additional trusted host can be set via
-# DASHBOARD_TRUSTED_HOST for a deliberately exposed deployment that puts a TLS-terminating,
-# password-authenticated reverse proxy in front of this app — never enabled by default, and
-# the Flask/Werkzeug server itself still only ever binds to 127.0.0.1 (see main()).
-TRUSTED_HOST = os.environ.get("DASHBOARD_TRUSTED_HOST", "")
+# Loopback-only by default (unchanged). One or more additional trusted hosts (comma-separated)
+# can be set via DASHBOARD_TRUSTED_HOST for a deliberately exposed deployment that puts a
+# TLS-terminating, password-authenticated reverse proxy in front of this app — never enabled by
+# default, and the Flask/Werkzeug server itself still only ever binds to 127.0.0.1 (see main()).
+TRUSTED_HOSTS = {h.strip() for h in os.environ.get("DASHBOARD_TRUSTED_HOST", "").split(",") if h.strip()}
 
 
 def create_app(settings=None, *, store=None, control_center_synchronous=False):
@@ -62,7 +62,7 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
     @app.before_request
     def local_security():
         host = request.host.split(":")[0]
-        if host != "127.0.0.1" and (not TRUSTED_HOST or host != TRUSTED_HOST):
+        if host != "127.0.0.1" and host not in TRUSTED_HOSTS:
             abort(403, "Use the dashboard's trusted address.")
         session.setdefault("csrf", secrets.token_hex(32))
         if request.method == "POST":
