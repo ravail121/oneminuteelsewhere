@@ -19,6 +19,8 @@ data/dashboard.lock
 *client_secret*.json
 *token*.json
 data/*.sqlite3
+data/cron-jobs/
 output/*
 !output/.gitkeep
 node_modules/
+.claude/

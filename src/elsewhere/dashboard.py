@@ -140,8 +140,8 @@ def create_app(settings=None, *, store=None, control_center_synchronous=False):
             raise ValueError("Refresh the New Video form and try again.")
         values = {k: request.form[k] for k in NewVideo.model_fields if k in request.form}
         options = NewVideo.model_validate(values)
-        # A real trend is optional bonus seasoning for Viral Material's locked Gaming/Football
-        # niches, not a requirement — proceed straight to project creation either way.
+        # A real trend is optional bonus seasoning for Viral Material's locked GTA6 topic,
+        # not a requirement — proceed straight to project creation either way.
         project_id = manager.create(options, submission)
         return redirect(url_for("confirm_story", project_id=project_id), code=303)
 

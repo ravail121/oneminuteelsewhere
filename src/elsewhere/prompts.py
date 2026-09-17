@@ -151,21 +151,27 @@ Use genuinely different central objects, settings, cast/relationships and ending
 
 VIRAL_NICHE_RULES = {
     "Gaming": (
-        "GAMING NICHE ONLY: this video is about a real, famous, popular video game (for example GTA, "
-        "Fortnite, Minecraft, Call of Duty, or any other genuinely well-known real game) — a real leak, "
-        "a real mission/task/challenge inside it, real news, a real update or release, a real secret or "
-        "Easter egg, or similar. State only real, well-known, publicly documented facts about the game; "
-        "never invent a leak, feature, release date or detail that isn't real. Scene image prompts must "
-        "aim for very high-quality, vivid, striking, game-inspired visuals — evoke the game's real theme, "
-        "setting and mood in an original illustrated way, but never literally reproduce the game's actual "
-        "logo, box art, UI or a copyrighted character's exact design. The title, hook and captions must "
-        "read as punchy, energetic, genuinely viral gaming-community language."
-    ),
-    "Football": (
-        "FOOTBALL NICHE ONLY: this video is about real football (soccer) — real latest news, transfers or "
-        "matches, or an old, classic, historical real football story, player, rivalry, record or moment "
-        "from any era. State only real, well-known, publicly documented facts. The title, hook and "
-        "captions must read as punchy, energetic, genuinely viral football-fan language."
+        "GAMING NICHE ONLY, LOCKED TO GTA6: this video is about Grand Theft Auto VI (GTA6) by "
+        "Rockstar Games ONLY — no other game, franchise or topic is permitted, ever. State only "
+        "real, well-known, publicly documented facts about GTA6; never invent a leak, feature, "
+        "release date, price or detail that isn't real. To keep every video genuinely different, "
+        "pick ONE distinct angle this time and commit to it fully rather than covering several "
+        "shallowly — for example: the official reveal trailers and what they showed, a specific "
+        "real leak or rumor and how credible it is, the setting (Vice City / Leonida) and how it "
+        "compares to real Florida/Miami, playable protagonists Lucia and Jason and their story, "
+        "specific vehicles or weapons shown so far, the radio stations or soundtrack, the "
+        "development budget and how it compares to other games ever made, Rockstar's development "
+        "history and past GTA games, direct comparisons to GTA5 (map size, mechanics, engine), the "
+        "delays and how the release date has moved, marketing and pre-order/edition news, "
+        "platform availability, online mode expectations, a specific Easter egg or detail fans "
+        "spotted in a trailer, or fan theories about the story. Rotate which angle you use — do "
+        "not default to the same one (for example release-date news) every time; actively choose "
+        "an angle genuinely different from a typical prior GTA6 video. Scene image prompts must "
+        "aim for very high-quality, vivid, striking, game-inspired visuals — evoke GTA6's real "
+        "theme, setting and mood in an original illustrated way, but never literally reproduce "
+        "Rockstar's actual logo, box art, UI or a copyrighted character's exact design. The title, "
+        "hook and captions must read as punchy, energetic, genuinely viral gaming-community "
+        "language."
     ),
 }
 
@@ -188,10 +194,10 @@ def viral_direction(settings):
                           "source": trend.get("source", "")}, ensure_ascii=False)
         )
     return ("VIRAL MATERIAL MODE: this is REAL, factual short-form content, not fiction, locked to exactly "
-            "one niche for this video. " + VIRAL_NICHE_RULES.get(niche, VIRAL_NICHE_RULES["Gaming"]) + " "
-            "Work out the single most natural real-content angle within this niche and set story_category "
-            "to a short label for it (for example 'Gaming Leak', 'Game Mission', 'Football News', "
-            "'Football History'). Do not copy videos, scripts or captions word for word. If, and only if, "
+            "one topic for this video. " + VIRAL_NICHE_RULES.get(niche, VIRAL_NICHE_RULES["Gaming"]) + " "
+            "Set story_category to a short label for the specific angle you chose (for example "
+            "'GTA6 Trailer Breakdown', 'GTA6 Leak', 'GTA6 Release News', 'GTA6 Map Reveal', "
+            "'GTA6 vs GTA5'). Do not copy videos, scripts or captions word for word. If, and only if, "
             "the content is genuinely about one or more specific real, identifiable people, name them "
             "truthfully and list their real full name(s) (at most 3) in real_people; use only well-known, "
             "publicly reported facts about them — never invented quotes, private details, or unconfirmed "

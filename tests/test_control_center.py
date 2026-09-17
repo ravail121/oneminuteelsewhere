@@ -249,7 +249,7 @@ def test_one_click_flow_also_supports_viral_material_mode(cc):
     assert run["video_mode"] == "viral"
     assert run["selection"] is None  # no fiction rubric/voice/visual-style picker for viral
     assert cc.manager.load(project_id)["video_mode"] == "viral"
-    assert cc.manager.load(project_id)["niche"] in {"Gaming", "Football"}
+    assert cc.manager.load(project_id)["niche"] == "Gaming"
 
 
 def test_one_click_rejects_an_invalid_video_mode(cc):

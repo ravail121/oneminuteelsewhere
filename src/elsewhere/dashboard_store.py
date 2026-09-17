@@ -35,8 +35,9 @@ from .scene_plan import narration_scenes, repair_scene_partition
 STYLES = ["Cinematic realistic", "Illustrated cinematic", "Black-and-white noir", "Warm emotional cinema"]
 VOICES = ["cedar", "marin", "alloy", "coral", "sage", "ash"]
 DURATIONS = {"50-60": (50, 60), "52-60": (52, 60), "55-60": (55, 60)}
-# Viral Material is deliberately locked to exactly these two niches, not "anything trending".
-VIRAL_NICHES = ("Gaming", "Football")
+# Viral Material is deliberately locked to exactly this niche, not "anything trending" — and
+# within it, VIRAL_NICHE_RULES (prompts.py) further locks the topic to GTA6 only.
+VIRAL_NICHES = ("Gaming",)
 STAGES = [("story_saved", "Story saved"),
           ("image_prompts", "Preparing image prompts")]
 STAGES += [(f"image_{i:02d}", f"Image {i} of 8") for i in range(1, 9)]
@@ -164,15 +165,8 @@ class DashboardStore:
             save_json(self.revision_dir(project) / "trend-source.json", project["trend"])
         project["stages"] = {}
 
-    def _last_viral_niche(self):
-        recent = [read_json(path) for path in self.output.glob("dashboard-*/dashboard-project.json")]
-        recent = [p for p in recent if p.get("video_mode") == "viral" and p.get("niche")]
-        return max(recent, key=lambda p: p["created_at"])["niche"] if recent else None
-
     def select_niche(self):
-        last = self._last_viral_niche()
-        candidates = [n for n in VIRAL_NICHES if n != last] or list(VIRAL_NICHES)
-        return secrets.choice(candidates)
+        return VIRAL_NICHES[0]
 
     def create(self, options, submission):
         with self.lock:
@@ -185,9 +179,9 @@ class DashboardStore:
             niche = None
             if options.video_mode == "viral":
                 niche = self.select_niche()
-                # A real trend is optional bonus seasoning now, not required: Gaming and
-                # Football are locked niches driven by the model's own real knowledge, not by
-                # whatever happens to be trending globally on a given day.
+                # A real trend is optional bonus seasoning now, not required: GTA6 is a locked
+                # topic driven by the model's own real knowledge, not by whatever happens to
+                # be trending globally on a given day.
                 if options.trend_id:
                     from .trends import TrendStore
                     trend = TrendStore(self.base.root).selection(options.trend_snapshot, options.trend_id)

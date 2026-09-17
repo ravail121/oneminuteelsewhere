@@ -66,13 +66,13 @@ def viral_project(tmp_path, language="auto"):
 
 
 def test_viral_project_can_be_created_with_no_trend_at_all(tmp_path):
-    # A real trend is optional bonus seasoning for the locked Gaming/Football niches now,
-    # not a requirement — most days no live trend will even match either niche.
+    # A real trend is optional bonus seasoning for the locked GTA6 topic now, not a
+    # requirement — most days no live trend will even be about GTA6.
     manager = DashboardStore(setup(tmp_path), synchronous=True)
     pid = manager.create(NewVideo(video_mode="viral"), "b" * 64)
     project = manager.load(pid)
     assert project["trend"] is None
-    assert project["niche"] in {"Gaming", "Football"}
+    assert project["niche"] == "Gaming"
     assert manager.settings(project).raw["dashboard_brief"]["niche"] == project["niche"]
 
 
@@ -96,22 +96,21 @@ def test_viral_gaming_content_may_name_real_games_blocked_terms_still_bans_named
         local_checks(political, settings, [], advisory_editorial=True)
 
 
-def test_viral_niches_alternate_gaming_and_football(tmp_path):
+def test_viral_niche_is_always_gaming(tmp_path):
     manager = DashboardStore(setup(tmp_path), synchronous=True)
     first = manager.load(manager.create(NewVideo(video_mode="viral"), "c" * 64))
     second = manager.load(manager.create(NewVideo(video_mode="viral"), "d" * 64))
-    assert {first["niche"], second["niche"]} == {"Gaming", "Football"}
-    assert first["niche"] != second["niche"]
+    assert first["niche"] == "Gaming"
+    assert second["niche"] == "Gaming"
 
 
-def test_viral_direction_locks_to_the_assigned_niche_only():
-    for niche, marker, other_marker in [("Gaming", "GAMING NICHE ONLY", "FOOTBALL NICHE ONLY"),
-                                        ("Football", "FOOTBALL NICHE ONLY", "GAMING NICHE ONLY")]:
-        raw = copy.deepcopy(load_settings(ROOT / "config.yaml").raw)
-        raw["dashboard_brief"] = {"video_mode": "viral", "niche": niche, "trend": None}
-        prompt = viral_direction(Settings(ROOT, raw))
-        assert marker in prompt and other_marker not in prompt
-        assert "REAL, factual" in prompt
+def test_viral_direction_locks_to_gta6_only():
+    raw = copy.deepcopy(load_settings(ROOT / "config.yaml").raw)
+    raw["dashboard_brief"] = {"video_mode": "viral", "niche": "Gaming", "trend": None}
+    prompt = viral_direction(Settings(ROOT, raw))
+    assert "LOCKED TO GTA6" in prompt
+    assert "GTA6" in prompt
+    assert "REAL, factual" in prompt
 
 
 def test_viral_visual_style_allows_real_people_but_never_logos(tmp_path):
