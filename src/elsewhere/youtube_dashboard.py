@@ -118,8 +118,10 @@ class YouTubeDashboard:
     def web_oauth_start(self, redirect_uri, nonce):
         with self.action(nonce):
             state = secrets.token_urlsafe(32)
-            save_json(self.directory / "oauth-state.json", {"state": state, "created_at": utc_now()})
-            return youtube.web_authorization_url(self.settings, redirect_uri, state)
+            url, code_verifier = youtube.web_authorization_url(self.settings, redirect_uri, state)
+            save_json(self.directory / "oauth-state.json",
+                     {"state": state, "code_verifier": code_verifier, "created_at": utc_now()})
+            return url
 
     def web_oauth_callback(self, redirect_uri, authorization_response, returned_state, *, google_error=None):
         state_path = self.directory / "oauth-state.json"
@@ -133,7 +135,8 @@ class YouTubeDashboard:
             save_json(self.state_path, {"message": "This connection attempt expired or could not be verified. No upload occurred. Click Connect YouTube again."})
             return
         try:
-            youtube.web_authorize_callback(self.settings, redirect_uri, authorization_response)
+            youtube.web_authorize_callback(self.settings, redirect_uri, authorization_response,
+                                           pending["code_verifier"])
             self.save_connection(youtube.youtube_client(self.settings))
         except Exception as error:  # noqa: BLE001 - only app-owned errors reach the browser
             message = str(error) if isinstance(error, youtube.YouTubeError) else "Google connection could not be verified. No upload occurred. Check the API setup and use Test connection or reconnect."

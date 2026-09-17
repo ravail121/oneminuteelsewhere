@@ -139,10 +139,13 @@ def authorize(settings: Settings) -> str:
     return str(token)
 
 
-def web_authorization_url(settings: Settings, redirect_uri: str, state: str) -> str:
+def web_authorization_url(settings: Settings, redirect_uri: str, state: str) -> tuple[str, str]:
     """Starts the browser-redirect OAuth flow for a Web application credential: the browser
     goes to Google directly, no local listener involved, so this works for a server the
-    browser cannot reach a loopback port on (a remote deployment, unlike authorize() above)."""
+    browser cannot reach a loopback port on (a remote deployment, unlike authorize() above).
+    Returns (url, code_verifier) — the PKCE code_verifier is generated fresh per call and must
+    be persisted by the caller and passed back into web_authorize_callback, since that runs in
+    a separate later request with a brand new Flow object that has no memory of this one."""
     from google_auth_oauthlib.flow import Flow
 
     secret = secret_path(settings, "youtube_client_secret")
@@ -152,13 +155,15 @@ def web_authorization_url(settings: Settings, redirect_uri: str, state: str) -> 
     flow = Flow.from_client_secrets_file(str(secret), SCOPES, redirect_uri=redirect_uri)
     url, _ = flow.authorization_url(access_type="offline", prompt="consent select_account",
                                     include_granted_scopes="false", state=state)
-    return url
+    return url, flow.code_verifier
 
 
-def web_authorize_callback(settings: Settings, redirect_uri: str, authorization_response: str) -> str:
+def web_authorize_callback(settings: Settings, redirect_uri: str, authorization_response: str,
+                            code_verifier: str) -> str:
     """Completes the browser-redirect flow: exchanges the code Google just sent back (in the
     full callback URL) for tokens. The caller must already have verified the OAuth 'state'
-    parameter matches what was issued in web_authorization_url before calling this."""
+    parameter matches what was issued in web_authorization_url before calling this, and must
+    pass the same code_verifier that web_authorization_url returned for that attempt."""
     from google_auth_oauthlib.flow import Flow
 
     secret = secret_path(settings, "youtube_client_secret")
@@ -169,7 +174,8 @@ def web_authorize_callback(settings: Settings, redirect_uri: str, authorization_
     previous_logging = logging.root.manager.disable
     try:
         logging.disable(logging.CRITICAL)
-        flow = Flow.from_client_secrets_file(str(secret), SCOPES, redirect_uri=redirect_uri)
+        flow = Flow.from_client_secrets_file(str(secret), SCOPES, redirect_uri=redirect_uri,
+                                             code_verifier=code_verifier)
         flow.fetch_token(authorization_response=authorization_response)
         credentials = flow.credentials
         check_scopes(credentials)

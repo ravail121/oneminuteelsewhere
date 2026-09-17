@@ -364,8 +364,9 @@ def test_web_authorization_url_and_callback_exchange_flow(tmp_path, monkeypatch)
     captured = {}
 
     class FakeFlow:
-        def __init__(self, redirect_uri):
+        def __init__(self, redirect_uri, code_verifier=None):
             self.redirect_uri = redirect_uri
+            self.code_verifier = code_verifier or "generated-verifier"
             self.credentials = SimpleNamespace(scopes=youtube.SCOPES, granted_scopes=youtube.SCOPES, to_json=lambda: PRIVATE)
 
         def authorization_url(self, **kwargs):
@@ -374,31 +375,36 @@ def test_web_authorization_url_and_callback_exchange_flow(tmp_path, monkeypatch)
 
         def fetch_token(self, authorization_response):
             captured["authorization_response"] = authorization_response
+            captured["fetch_code_verifier"] = self.code_verifier
 
-    def from_client_secrets_file(path, scopes, redirect_uri=None, state=None):
+    def from_client_secrets_file(path, scopes, redirect_uri=None, code_verifier=None, state=None):
         captured["scopes"] = scopes
-        return FakeFlow(redirect_uri)
+        return FakeFlow(redirect_uri, code_verifier)
     monkeypatch.setattr(Flow, "from_client_secrets_file", staticmethod(from_client_secrets_file))
 
-    url = youtube.web_authorization_url(settings, "https://example.test/youtube/oauth2callback", "the-state")
+    url, code_verifier = youtube.web_authorization_url(settings, "https://example.test/youtube/oauth2callback", "the-state")
     assert captured["scopes"] == youtube.SCOPES
     assert captured["auth_kwargs"]["state"] == "the-state"
     assert "the-state" in url
+    assert code_verifier == "generated-verifier"
 
     youtube.web_authorize_callback(settings, "https://example.test/youtube/oauth2callback",
-        "https://example.test/youtube/oauth2callback?code=abc&state=the-state")
+        "https://example.test/youtube/oauth2callback?code=abc&state=the-state", code_verifier)
     assert captured["authorization_response"].endswith("state=the-state")
+    # The exact same code_verifier issued alongside the authorization URL must be the one
+    # used at token-exchange time, not a freshly (and differently) auto-generated one.
+    assert captured["fetch_code_verifier"] == code_verifier
     assert youtube.secret_path(settings, "youtube_token").is_file()
     # A second attempt while a token already exists must not silently overwrite it.
     with pytest.raises(youtube.YouTubeError, match="Disconnect"):
         youtube.web_authorize_callback(settings, "https://example.test/youtube/oauth2callback",
-            "https://example.test/youtube/oauth2callback?code=abc&state=the-state")
+            "https://example.test/youtube/oauth2callback?code=abc&state=the-state", code_verifier)
 
 
 def test_connect_redirects_straight_to_google_for_a_web_credential(yt, monkeypatch):
     save_json(youtube.secret_path(yt.settings, "youtube_client_secret"), WEB_CLIENT)
     monkeypatch.setattr(youtube, "web_authorization_url",
-        lambda settings, redirect_uri, state: f"https://accounts.google.com/mock?state={state}&redirect_uri={redirect_uri}")
+        lambda settings, redirect_uri, state: (f"https://accounts.google.com/mock?state={state}&redirect_uri={redirect_uri}", "fake-verifier"))
     yt.browser.get("/youtube", base_url=BASE)
     with yt.browser.session_transaction(base_url=BASE) as session:
         csrf = session["csrf"]
@@ -411,7 +417,7 @@ def test_connect_redirects_straight_to_google_for_a_web_credential(yt, monkeypat
 
 def test_oauth2callback_completes_the_connection_for_a_web_credential(yt, monkeypatch):
     save_json(youtube.secret_path(yt.settings, "youtube_client_secret"), WEB_CLIENT)
-    def fake_authorize_callback(settings, redirect_uri, authorization_response):
+    def fake_authorize_callback(settings, redirect_uri, authorization_response, code_verifier):
         youtube.save_token(youtube.secret_path(settings, "youtube_token"), PRIVATE)
         return str(youtube.secret_path(settings, "youtube_token"))
     monkeypatch.setattr(youtube, "web_authorize_callback", fake_authorize_callback)
