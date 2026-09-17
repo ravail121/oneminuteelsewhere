@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import secrets
 from datetime import datetime, timedelta
 
 from flask import Blueprint, redirect, render_template, request
@@ -80,31 +81,33 @@ class CronJobs:
         save_json(path, record)
         return record
 
-    # ---- firing a slot (called by the scheduler, or manually for a dry run) --------------
-    def fire(self, index):
-        """Idempotent: a duplicate fire for the same local day/slot (a misfire replay, an app
-        restart near the fire time) is a safe no-op via the exact same submission-based
-        deduplication Control Center already uses for a manual click — it never starts a
-        second project for a slot that already has one."""
+    # ---- firing a slot (called by the scheduler, a manual "Run now" click, or a dry run) --
+    def fire(self, index, *, manual=False):
+        """Idempotent for a scheduled fire: a duplicate fire for the same local day/slot (a
+        misfire replay, an app restart near the fire time) is a safe no-op via the exact same
+        submission-based deduplication Control Center already uses for a manual click — it
+        never starts a second project for a slot that already has one. A manual=True "Run
+        now" click always starts a genuinely new run instead, using a one-off submission, and
+        also ignores the paused flag — a deliberate click is its own explicit confirmation."""
         time_str, video_mode = SCHEDULE[index]
         date_str = datetime.now(self._tz()).strftime("%Y-%m-%d")
         fired_at = utc_now()
-        if not self.enabled:
+        if not self.enabled and not manual:
             self._record(date_str, index, time=time_str, video_mode=video_mode, fired_at=fired_at,
                          project_id=None, error="Cron jobs are paused; this slot was skipped.")
             LOG.info("Slot %s (%s) skipped: cron jobs paused", index, video_mode)
             return
-        submission = hashlib.sha256(f"cron-{date_str}-{index}".encode()).hexdigest()
+        submission = secrets.token_hex(32) if manual else hashlib.sha256(f"cron-{date_str}-{index}".encode()).hexdigest()
         try:
             project_id = self.control_center.start(submission, privacy="public", video_mode=video_mode)
             self._record(date_str, index, time=time_str, video_mode=video_mode, fired_at=fired_at,
-                         project_id=project_id, error=None)
-            LOG.info("Slot %s (%s) started project %s", index, video_mode, project_id)
+                         project_id=project_id, error=None, manual=manual)
+            LOG.info("Slot %s (%s) started project %s%s", index, video_mode, project_id, " (manual)" if manual else "")
         except Exception as error:  # noqa: BLE001 - never leak provider payloads into the saved record
             message = str(error) if isinstance(error, ControlCenterError) else \
                 f"Stopped safely: {type(error).__name__}: {str(error)[:300]}"
             self._record(date_str, index, time=time_str, video_mode=video_mode, fired_at=fired_at,
-                         project_id=None, error=message)
+                         project_id=None, error=message, manual=manual)
             LOG.warning("Slot %s (%s) did not start: %s", index, video_mode, message)
 
     # ---- the real scheduler (production only; never auto-started under test) -------------
@@ -152,7 +155,7 @@ class CronJobs:
         for index, (time_str, video_mode) in enumerate(SCHEDULE):
             recent = self._recent_records(index)
             last = recent[0] if recent else None
-            status, message, project = "never run", None, None
+            status, message, project, cost, progress = "never run", None, None, None, None
             if last:
                 if last.get("error"):
                     status, message = "error", last["error"]
@@ -160,13 +163,31 @@ class CronJobs:
                     try:
                         run = self.control_center.public_run(last["project_id"])
                         status, message = run["phase"], run["message"]
+                        cost = run["project"]["calculated_cost"]
+                        progress = run["project"]["progress"]
                     except ControlCenterError:
                         status, message = "unknown", "The linked project could no longer be found."
-                    project = {"id": last["project_id"], "link": f"/control-center/run/{last['project_id']}"}
+                    # The project's own detail page (story, scene-by-scene stage progress,
+                    # images as they land) — the same page a manually created project uses.
+                    project = {"id": last["project_id"], "link": f"/projects/{last['project_id']}"}
             rows.append({"index": index, "time": time_str, "video_mode": video_mode,
                         "next_fire_time": self.next_fire_time(index), "last_fired_at": last.get("fired_at") if last else None,
-                        "status": status, "message": message, "project": project})
+                        "status": status, "message": message, "project": project,
+                        "cost": cost, "progress": progress, "manual": bool(last and last.get("manual"))})
         return rows
+
+    def today_total_cost(self, rows=None):
+        rows = rows if rows is not None else self.slot_rows()
+        today_str = datetime.now(self._tz()).strftime("%Y-%m-%d")
+        total = 0.0
+        for row in rows:
+            fired_at = row.get("last_fired_at")
+            if not fired_at:
+                continue
+            fired_local = datetime.fromisoformat(fired_at).astimezone(self._tz())
+            if fired_local.strftime("%Y-%m-%d") == today_str:
+                total += row.get("cost") or 0
+        return round(total, 6)
 
 
 def register_cron_jobs(app, settings, control_center):
@@ -176,12 +197,21 @@ def register_cron_jobs(app, settings, control_center):
 
     @routes.get("/cron-jobs")
     def home():
-        return render_template("cron_jobs.html", rows=cron.slot_rows(), enabled=cron.enabled,
+        rows = cron.slot_rows()
+        return render_template("cron_jobs.html", rows=rows, enabled=cron.enabled,
+                               total_cost_today=cron.today_total_cost(rows),
                                timezone=settings.brand["timezone"], nonce=request.args.get("nonce", ""))
 
     @routes.post("/cron-jobs/toggle")
     def toggle():
         cron.set_enabled(request.form.get("enabled") == "yes")
+        return redirect("/cron-jobs", code=303)
+
+    @routes.post("/cron-jobs/run/<int:index>")
+    def run_now(index):
+        if not 0 <= index < len(SCHEDULE):
+            return redirect("/cron-jobs", code=303)
+        cron.fire(index, manual=True)
         return redirect("/cron-jobs", code=303)
 
     app.register_blueprint(routes)

@@ -39,8 +39,49 @@ def test_fire_starts_the_same_control_center_flow_as_a_manual_click(cc):  # noqa
     assert row["video_mode"] == SCHEDULE[0][1]
     assert row["project"] is not None
     assert row["status"] == "complete"
+    assert row["project"]["link"] == f"/projects/{row['project']['id']}"
+    assert row["cost"] > 0
+    assert row["progress"] == 100
     project = cc.manager.load(row["project"]["id"])
     assert project["video_mode"] == SCHEDULE[0][1]
+
+
+def test_manual_run_bypasses_pause_and_always_starts_a_fresh_project(cc):  # noqa: F811
+    connect(cc)
+    cron = cron_of(cc)
+    cron.set_enabled(False)  # paused — a scheduled fire would be skipped
+    cron.fire(4, manual=True)
+    first = cron.slot_rows()[4]
+    assert first["project"] is not None
+    assert first["manual"] is True
+    cron.fire(4, manual=True)  # a second manual click must not be deduped against the first
+    second = cron.slot_rows()[4]
+    assert second["project"]["id"] != first["project"]["id"]
+    assert len(list(cc.manager.output.glob("dashboard-*"))) == 2
+
+
+def test_today_total_cost_sums_only_todays_fired_slots(cc):  # noqa: F811
+    connect(cc)
+    cron = cron_of(cc)
+    cron.set_enabled(True)
+    cron.fire(0)
+    cron.fire(1)
+    rows = cron.slot_rows()
+    expected = round((rows[0]["cost"] or 0) + (rows[1]["cost"] or 0), 6)
+    assert expected > 0
+    assert cron.today_total_cost(rows) == expected
+
+
+def test_run_now_route_starts_a_run_and_redirects(cc):  # noqa: F811
+    connect(cc)
+    cc.browser.get("/cron-jobs", base_url=BASE)
+    with cc.browser.session_transaction(base_url=BASE) as session:
+        csrf = session["csrf"]
+    response = cc.browser.post("/cron-jobs/run/5", base_url=BASE, data={"csrf": csrf})
+    assert response.status_code == 303
+    row = cron_of(cc).slot_rows()[5]
+    assert row["project"] is not None
+    assert row["manual"] is True
 
 
 def test_fire_is_idempotent_for_the_same_day_and_slot(cc):  # noqa: F811

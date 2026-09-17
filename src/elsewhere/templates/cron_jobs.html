@@ -10,17 +10,22 @@
 </section>
 
 <section class="card"><h2>Schedule and last run</h2>
-<div class="table-scroll"><table><thead><tr><th>Time</th><th>Mode</th><th>Next run</th><th>Last fired</th><th>Status</th><th>Message</th><th>Project</th></tr></thead><tbody>
+<div class="table-scroll"><table><thead><tr><th>Time</th><th>Mode</th><th>Next run</th><th>Last fired</th><th>Status</th><th>Progress</th><th>Cost</th><th>Message</th><th>Project</th><th>Run now</th></tr></thead><tbody>
 {% for row in rows %}<tr>
 <td>{{ row.time }}</td>
 <td>{{ 'Recurring Cast' if row.video_mode == 'messi_ronaldo' else 'Viral Material' }}</td>
 <td>{{ row.next_fire_time.strftime('%Y-%m-%d %H:%M %Z') }}</td>
-<td>{{ row.last_fired_at or '—' }}</td>
+<td>{{ row.last_fired_at or '—' }}{% if row.manual %} <span class="fine">(manual)</span>{% endif %}</td>
 <td><span class="pill">{{ row.status }}</span></td>
+<td>{% if row.progress is not none %}{{ row.progress }}%{% else %}—{% endif %}</td>
+<td>{{ money(row.cost) if row.cost is not none else '—' }}</td>
 <td>{{ row.message or '—' }}</td>
-<td>{% if row.project %}<a href="{{ row.project.link }}">View run</a>{% else %}—{% endif %}</td>
+<td>{% if row.project %}<a href="{{ row.project.link }}">View project</a>{% else %}—{% endif %}</td>
+<td><form method="post" action="/cron-jobs/run/{{ row.index }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button {% if row.status in ['generating','producing','uploading','checking_status','selecting'] %}disabled{% endif %}>Run now</button></form></td>
 </tr>{% endfor %}
-</tbody></table></div>
-<p class="fine">Each row shows only the most recent day this slot fired, looked up live from its project's own current status — refresh this page to see progress update while a run is in flight.</p>
+</tbody>
+<tfoot><tr><td colspan="6"><strong>Total cost today</strong></td><td colspan="4"><strong>{{ money(total_cost_today) }}</strong></td></tr></tfoot>
+</table></div>
+<p class="fine">Each row shows only the most recent day this slot fired, looked up live from its project's own current status — refresh this page to see progress and cost update while a run is in flight. "Run now" starts a fresh run immediately regardless of the schedule or the paused state above, using the same one-click flow and all its usual limits.</p>
 </section>
 {% endblock %}
