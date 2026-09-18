@@ -25,7 +25,6 @@ from .costs import utc_now
 from .dashboard_store import STYLES, VOICES, DashboardStore, NewVideo, read_json
 from .models import StoryPackage
 from .openai_service import save_json
-from .rubrics import RUBRICS
 from .safety import similarity
 from .youtube_dashboard import YouTubeDashboard, best_known_privacy
 
@@ -91,11 +90,10 @@ def _parse(value):
 
 
 def select_category(rnd, recent_categories):
-    previous = recent_categories[0] if recent_categories else None
-    last_three = {c for c in recent_categories[:3] if c}
-    candidates = [c for c in RUBRICS if c != previous] or list(RUBRICS)
-    preferred = [c for c in candidates if c not in last_three]
-    return rnd.choice(preferred or candidates)
+    """One-click Recurring Cast fiction is deliberately locked to the Funny rubric — every
+    auto-produced story's angle is a silly, punchy, laugh-driven scene, not genre variety.
+    A human using the New Video form directly can still pick any other category there."""
+    return "Funny"
 
 
 def select_voice(rnd, previous_voice):

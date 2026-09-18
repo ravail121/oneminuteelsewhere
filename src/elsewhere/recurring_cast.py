@@ -22,9 +22,14 @@ VISUAL_IDENTITIES = (
 STYLE = ("polished cinematic slightly stylized illustration; clearly drawn, never a fake photograph or "
          "documentary frame. Funny, exaggerated, clickable Shorts-thumbnail energy in every image: big "
          "expressive reactions, dynamic poses, bright vivid colors and comedic exaggeration — while keeping "
-         "every character recognizable and dignified, never mocking or humiliating. Vary the camera angle, "
-         "framing, composition, action and expression from scene to scene so no two of the eight images in "
-         "a story look alike; repeating the same pose or shot is a missed opportunity, not a safe choice.")
+         "every character recognizable and dignified, never mocking or humiliating. Give faces big, "
+         "exaggerated comedic emotion in every scene image — genuine delighted laughter (even joyful tears-"
+         "of-laughter), wide-eyed shock, huge grins, playful surprise — real reaction-face energy, the kind "
+         "that reads instantly even as a thumbnail. This is always joyful or comedic emotion, never real "
+         "sadness, distress or crying from unhappiness (see RULES on depicting a real recognizable person). "
+         "Vary the camera angle, framing, composition, action and expression from scene to scene so no two "
+         "of the eight images in a story look alike; repeating the same pose or shot is a missed "
+         "opportunity, not a safe choice.")
 LIFE_VARIETY = """Permanent life-variety direction for NEW stories:
 This story's cast is the one or two chosen recurring identities (see RULES); invent a fresh fictional
 life for whichever one or two are chosen, for this specific story.
@@ -54,10 +59,17 @@ not long spoken descriptions. Never rewrite an already approved story to impose 
 All existing public-figure, harmless-fiction, unbranded-clothing and narrator-only voice rules remain.
 """
 RULES = """Permanent recurring-cast roster of four: Lionel Messi, Cristiano Ronaldo, IShowSpeed and MrBeast,
-as recognizable synthetic public figures. Each individual story features exactly ONE or TWO of these
-four, your choice — never all four, never zero, never a mix with anyone outside this roster. Vary
-which one or two you choose across stories rather than defaulting to the same pairing every time.
+as recognizable synthetic public figures. Cristiano Ronaldo is mandatory in every single story — never
+omit him. Optionally pair him with exactly one more from Messi, IShowSpeed or MrBeast, your choice;
+never all four, never anyone outside this roster, never a story without Ronaldo. Vary whether Ronaldo
+appears alone or paired, and vary which partner you pick, across stories rather than defaulting to the
+same pairing every time.
 Give whichever one or two you choose a genuine, meaningful part in the story, not a silent cameo.
+Every story must include one clear, satisfying beat where Ronaldo does something impressively better
+than expected — a skill, feat or clever solution directly tied to that story's plot and conflict, not
+a random aside — and other characters visibly react to it (delight, awe, big reactions). Make this the
+story's single most memorable, most shareable moment; it must feel earned by what actually happens in
+the story, not just stated.
 No other named or speaking character; background people only when necessary, anonymous and silent.
 Entirely harmless unofficial fiction, never a claim about real events, scandals or personal allegations.
 No endorsements of any product, business, party, religion, investment, medicine or channel.

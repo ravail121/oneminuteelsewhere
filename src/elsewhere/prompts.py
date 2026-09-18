@@ -145,7 +145,7 @@ Supply draft_scores for {', '.join(GLOBAL_SCORES)} and draft_category_scores as 
 for exactly the relevant rubric scores, each 1-10. These are provisional author self-assessments.
 Use genuinely different central objects, settings, cast/relationships and ending mechanisms from prior ideas:
 {previous}
-{f'The permanent roster is {CAST}. Choose ONE or TWO of them for this story only, never all four and never zero; vary which one or two you pick across stories rather than defaulting to the same pairing. Vary the fictional roles, objects, settings and payoff. Give whichever one or two you choose a genuine part; do not reduce them to a silent cameo. Do not penalize cast repetition. Declare named_characters and speaking_characters truthfully as exactly your chosen one or two; no other character is permitted. Attribute each line of dialogue to one of your chosen cast members in the same sentence.' if enabled(settings) else ''}
+{f'The permanent roster is {CAST}. Cristiano Ronaldo is mandatory in this story; optionally pair him with exactly ONE more of Messi, IShowSpeed or MrBeast, your choice, never all four; vary whether he is alone or paired, and vary which partner, across stories rather than defaulting to the same pairing. Vary the fictional roles, objects, settings and payoff. Give whichever one or two you choose a genuine part; do not reduce them to a silent cameo. Include the required Ronaldo-does-something-better beat from RULES. Do not penalize cast repetition. Declare named_characters and speaking_characters truthfully as exactly your chosen one or two; no other character is permitted. Attribute each line of dialogue to one of your chosen cast members in the same sentence.' if enabled(settings) else ''}
 """
 
 

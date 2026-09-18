@@ -315,15 +315,13 @@ def test_one_click_run_still_completes_when_trend_lookup_fails(cc):
     assert run["selection"]["idea"]["trend_hint"] is None
 
 
-def test_category_never_repeats_the_previous_video_and_avoids_the_last_three_when_possible():
+def test_category_is_always_funny():
     import random
     rnd = random.Random(1)
-    for _ in range(200):
+    for _ in range(20):
         recent = rnd.sample(list(RUBRICS), 3)
-        chosen = select_category(rnd, recent)
-        assert chosen != recent[0]
-        if len(set(RUBRICS) - set(recent)) > 0:
-            assert chosen not in recent
+        assert select_category(rnd, recent) == "Funny"
+    assert select_category(rnd, []) == "Funny"
 
 
 def test_voice_never_repeats_the_previous_video():
