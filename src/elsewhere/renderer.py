@@ -11,6 +11,12 @@ from .config import Settings
 from .languages import caption_font
 from .models import NarrationAlignment, StoryPackage
 
+# Every finished reel plays back this much faster than it was narrated/rendered at — applied
+# uniformly to video (including already-burned-in captions) and audio together in the final
+# encode below, so everything stays in sync without touching caption timing or narration
+# generation at all.
+PLAYBACK_SPEED = 1.5
+
 
 def run(command: list[str]) -> None:
     result = subprocess.run(command, capture_output=True, text=True, check=False)
@@ -217,6 +223,7 @@ def render_video(
     ass_filter = (
         f"ass='{_escape_filter_path(subtitle_ass)}':fontsdir='/System/Library/Fonts'"
     )
+    sped_up_duration = duration / PLAYBACK_SPEED
     run(
         [
             "ffmpeg",
@@ -227,16 +234,16 @@ def render_video(
             str(narration),
             "-filter_complex",
             (
-                f"[0:v]{ass_filter}[v];"
+                f"[0:v]{ass_filter},setpts=PTS/{PLAYBACK_SPEED}[v];"
                 "[1:a]highpass=f=70,lowpass=f=14500,loudnorm=I=-14:TP=-1.5:LRA=8,"
-                "apad=pad_dur=0.25,aresample=48000[a]"
+                f"apad=pad_dur=0.25,atempo={PLAYBACK_SPEED},aresample=48000[a]"
             ),
             "-map",
             "[v]",
             "-map",
             "[a]",
             "-t",
-            f"{duration:.3f}",
+            f"{sped_up_duration:.3f}",
             "-c:v",
             "libx264",
             "-preset",
@@ -291,9 +298,12 @@ def validate_video(
         "frame_rate_30fps": video_stream["r_frame_rate"] == "30/1",
         "audio_codec_aac": audio_stream["codec_name"] == "aac",
         "duration_within_requested_range": (
-            float(spec["duration_min_seconds"]) <= duration <= float(spec["duration_max_seconds"])
+            float(spec["duration_min_seconds"]) / PLAYBACK_SPEED <= duration
+            <= float(spec["duration_max_seconds"]) / PLAYBACK_SPEED
         ),
-        "duration_matches_alignment": abs(duration - alignment.duration_seconds) <= 0.25,
+        "duration_matches_alignment": (
+            abs(duration - alignment.duration_seconds / PLAYBACK_SPEED) <= 0.25 / PLAYBACK_SPEED
+        ),
         "eight_scene_images": len(story.scenes) == 8,
         "seven_scene_transitions": len(clip_files) - 1 == 7,
         "scene_clips_follow_measured_boundaries": scene_clip_timing_ok,
