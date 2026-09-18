@@ -80,6 +80,16 @@ def test_a_single_roster_member_is_a_valid_one_person_story():
     assert local_cast_errors(story) == []
 
 
+def test_the_required_subscribe_line_is_not_blocked_as_an_endorsement():
+    # Every story's scene 1 now requires a short channel-voiced subscribe line by design
+    # (see story_prompt's hook instructions); that must not trip this endorsement guard,
+    # which still exists to block a fictional character's claimed real-world endorsement.
+    story = demo_story()
+    story.scenes[0].narration = "Why did Messi vanish from the kitchen? Hit subscribe to this channel, we work hard on these!"
+    story.narration = " ".join(s.narration for s in story.scenes)
+    assert local_cast_errors(story) == []
+
+
 def test_more_than_two_roster_members_in_one_story_is_blocked():
     story = demo_story()
     story.narration = "Messi, Ronaldo, IShowSpeed and MrBeast all found the box together."

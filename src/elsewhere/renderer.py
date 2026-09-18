@@ -15,7 +15,7 @@ from .models import NarrationAlignment, StoryPackage
 # uniformly to video (including already-burned-in captions) and audio together in the final
 # encode below, so everything stays in sync without touching caption timing or narration
 # generation at all.
-PLAYBACK_SPEED = 1.5
+PLAYBACK_SPEED = 1.3
 
 
 def run(command: list[str]) -> None:

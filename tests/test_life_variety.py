@@ -30,6 +30,7 @@ def test_new_stories_keep_selected_category_and_vary_fictional_lives(category):
         assert "Never rewrite an already approved story" in prompt
     assert f"Set story_category to {category!r}" in story_prompt(settings, "short", [])
     assert "VERY catchy and clickable" in story_prompt(settings, "short", [])
+    assert "never the exact words \"subscribe to\"" in story_prompt(settings, "short", [])
 
 
 def test_old_settings_keep_their_existing_cast_contract():

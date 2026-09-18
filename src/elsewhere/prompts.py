@@ -123,7 +123,14 @@ def story_prompt(settings: Settings, format_name: str, prior_ideas: list[str]) -
 {f'Set story_category to {category!r}.' if category else 'Set story_category to a short label (3-60 characters) for the real-content angle you chose, as instructed above.'}
 Target narration: {'115-130 (allowed 115-135)' if format_name == 'short' else str(spec['narration_words_min']) + '-' + str(spec['narration_words_max'])} words.
 Exact scene count: {spec['scene_count']}. Format field: {format_name!r}.
-Hook must exactly repeat scene 1 narration. Scenes flow naturally into each other.
+Hook must exactly repeat scene 1 narration. Scene 1 (and so the hook) has exactly two short
+sentences, in this order: first, a genuinely curious hook sentence framed as an open question
+or mystery that only gets answered by the story's ending — never a flat description; second,
+one very short, separate sentence in the channel narrator's own voice asking viewers to like
+and subscribe, mentioning the channel works hard on these (for example: "Hit subscribe — we
+work really hard on these!"). Keep that second sentence brief and natural, never a hard sell,
+and never the exact words "subscribe to". Both sentences count toward the total word target
+below. Scenes flow naturally into each other.
 Return the complete spoken story in narration. Scene narration must partition that exact text,
 in order, with no added words. Return only story content in all creative fields.
 Never generate or return AI/public-figure disclosures, disclaimers or youtube_disclosure.

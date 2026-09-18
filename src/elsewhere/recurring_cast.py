@@ -143,7 +143,10 @@ def local_cast_errors(story):
     for term in prohibited:
         if re.search(r"\b" + re.escape(term) + r"\b", text, re.IGNORECASE):
             errors.append(f"Prohibited public-figure portrayal or branding: {term}")
-    if re.search(r"\b(?:endorses?|sponsored by|vote for|buy now|invest in|subscribe to|true story|really happened)\b", text, re.IGNORECASE):
+    # "subscribe to" is deliberately not banned: every story's scene 1 now requires a short
+    # channel-voiced subscribe line by design (see story_prompt's hook instructions) — that's
+    # the channel itself speaking, not a fictional character's claimed real-world endorsement.
+    if re.search(r"\b(?:endorses?|sponsored by|vote for|buy now|invest in|true story|really happened)\b", text, re.IGNORECASE):
         errors.append("Endorsements or real-event claims are not allowed for the recurring cast")
     # Pronouns are never proper names; only an actual capitalized name here is a real extra character.
     pronouns = {"He", "She", "It", "They", "We", "You", "I", "This", "That", "These", "Those"}
