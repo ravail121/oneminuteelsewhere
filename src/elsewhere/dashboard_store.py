@@ -358,9 +358,15 @@ class DashboardStore:
         if compare:
             if not story.continuity_bible or any(not story.creative_fingerprint.get(k) for k in ("main_object", "setting", "characters", "twist")):
                 warnings.append("Missing continuity or originality descriptors; fresh visual planning will use your approved text.")
+            # Viral Material is locked to one real topic (GTA6): its real-world setting, and
+            # often its named characters (Lucia/Jason), are legitimately the same story to
+            # story — that repetition is an unavoidable fact about the topic, not a sign of a
+            # lazily-reused idea, so it must not trip this check the way it would for fiction.
+            viral_locked_fields = {"setting", "characters"} if project.get("video_mode") == "viral" else set()
             for previous in self.prior_stories(project):
                 repeated = [key for key, value in story.creative_fingerprint.items()
                             if not (project.get("recurring_cast") and key == "characters")
+                            if key not in viral_locked_fields
                             if value and previous.creative_fingerprint.get(key)
                             and similarity(value, previous.creative_fingerprint[key]) >= .72]
                 if similarity(story.narration, previous.narration) >= .70 or repeated:

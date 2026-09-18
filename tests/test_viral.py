@@ -113,6 +113,39 @@ def test_viral_direction_locks_to_gta6_only():
     assert "REAL, factual" in prompt
 
 
+def test_viral_repeated_setting_and_characters_are_not_flagged_as_too_similar(tmp_path):
+    # GTA6 is the only real topic Viral Material is locked to: its real-world setting, and
+    # often its named characters (Lucia/Jason), are legitimately the same story to story.
+    # That must not trip the duplicate-idea warning the way it correctly would for fiction.
+    def story_with(sentence, fingerprint):
+        # Distinct narration per case: the broader narration-similarity check must not be
+        # what's (dis)proving this fingerprint-specific behavior.
+        text = " ".join(f"{sentence}, part {i}." for i in range(8))
+        scenes = narration_scenes(text)
+        return hindi_story().model_copy(update={"narration": text, "scenes": scenes,
+                                                 "hook": scenes[0].narration, "creative_fingerprint": fingerprint})
+
+    manager, pid, _ = viral_project(tmp_path)
+    project = manager.load(pid)
+    previous = story_with("A leaked trailer clip surfaced online", {
+        "main_object": "a leaked trailer clip", "setting": "Vice City, Leonida",
+        "characters": "Lucia and Jason", "twist": "the leak turns out to be official marketing"})
+    (manager.output / "dashboard-previous" / "revision-0001").mkdir(parents=True)
+    save_json(manager.output / "dashboard-previous" / "revision-0001" / "draft.json", previous.model_dump())
+
+    same_setting_and_cast = story_with("The game's radio station lineup was revealed", {
+        "main_object": "the game's radio station lineup", "setting": "Vice City, Leonida",
+        "characters": "Lucia and Jason", "twist": "a real musician's song was cut for licensing"})
+    result = manager.evaluate(same_setting_and_cast, project)
+    assert not any("Too similar" in w for w in result["warnings"])
+
+    same_main_object = story_with("Fans spotted something wild in the newest footage", {
+        "main_object": "a leaked trailer clip", "setting": "a completely different place",
+        "characters": "no one in particular", "twist": "a completely different ending"})
+    result = manager.evaluate(same_main_object, project)
+    assert any("Too similar to an earlier story: main_object" in w for w in result["warnings"])
+
+
 def test_viral_visual_style_allows_real_people_but_never_logos(tmp_path):
     manager, pid, _ = viral_project(tmp_path)
     style = manager.settings(manager.load(pid)).brand["visual_style"]
