@@ -11,6 +11,7 @@ unaffected and remain available.
 """
 from __future__ import annotations
 
+import logging
 import random
 import secrets
 import threading
@@ -27,6 +28,8 @@ from .models import StoryPackage
 from .openai_service import save_json
 from .safety import similarity
 from .youtube_dashboard import YouTubeDashboard, best_known_privacy
+
+LOG = logging.getLogger("elsewhere.control_center")
 
 MONTHLY_VIDEO_LIMIT = 200
 MONTHLY_SPEND_LIMIT_USD = 40.0
@@ -443,7 +446,15 @@ class ControlCenter:
             self._update_run(project_id, phase="uploading", message="Preparing YouTube metadata…")
             self._upload(project_id)
         except Exception as error:  # noqa: BLE001 - never leak provider payloads into the saved record
-            self._update_run(project_id, phase="failed", message=f"Stopped safely: {type(error).__name__}: {str(error)[:300]}")
+            message = f"Stopped safely: {type(error).__name__}: {str(error)[:300]}"
+            # Log BEFORE writing the run record: if that write itself fails (for example the
+            # disk is full), this is otherwise the only trace this run ever failed at all —
+            # the run record would stay frozen at whatever phase it last reached, forever.
+            LOG.warning("_drive(%s): %s", project_id, message)
+            try:
+                self._update_run(project_id, phase="failed", message=message)
+            except Exception:  # noqa: BLE001 - recording this failure must never itself go uncaught
+                LOG.critical("_drive(%s): could not save the failure record either", project_id)
         finally:
             self._clear_active(project_id)
 

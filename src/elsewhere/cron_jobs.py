@@ -106,9 +106,15 @@ class CronJobs:
         except Exception as error:  # noqa: BLE001 - never leak provider payloads into the saved record
             message = str(error) if isinstance(error, ControlCenterError) else \
                 f"Stopped safely: {type(error).__name__}: {str(error)[:300]}"
-            self._record(date_str, index, time=time_str, video_mode=video_mode, fired_at=fired_at,
-                         project_id=None, error=message, manual=manual)
+            # Log BEFORE writing the record: if the record write itself fails (for example the
+            # disk is full — exactly what happened once already), this is otherwise the only
+            # trace this fire ever ran at all, let alone why it failed.
             LOG.warning("Slot %s (%s) did not start: %s", index, video_mode, message)
+            try:
+                self._record(date_str, index, time=time_str, video_mode=video_mode, fired_at=fired_at,
+                             project_id=None, error=message, manual=manual)
+            except Exception:  # noqa: BLE001 - recording this failure must never itself go uncaught
+                LOG.critical("Slot %s (%s): could not save the failure record either", index, video_mode)
 
     def run_cleanup(self):
         """Removes on-disk output for old finished projects — see DashboardStore.cleanup_old_

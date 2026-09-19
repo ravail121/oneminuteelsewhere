@@ -157,6 +157,26 @@ def test_fire_records_a_control_center_error_without_leaking_provider_details(cc
     assert "Monthly video limit reached" in row["message"]
 
 
+def test_fire_logs_and_survives_if_even_the_failure_record_cannot_be_saved(cc, monkeypatch, caplog):  # noqa: F811
+    # Reproduces what actually happened when the server's disk filled up: fire() hit an
+    # error, then its own _record() call to save that error ALSO failed (no space left),
+    # which used to propagate uncaught with zero trace — not even the warning log that
+    # would otherwise explain the failure, since it ran after the now-failing write.
+    connect(cc)
+    cron = cron_of(cc)
+    cron.set_enabled(True)
+    def blocked(*args, **kwargs):
+        raise ControlCenterError("Monthly video limit reached (200 completed this month). No new project was started.")
+    monkeypatch.setattr(cc.control_center, "start", blocked)
+    def flaky_record(*args, **kwargs):
+        raise OSError("No space left on device")
+    monkeypatch.setattr(cron, "_record", flaky_record)
+    with caplog.at_level("WARNING", logger="elsewhere.cron_jobs"):
+        cron.fire(3)  # must not raise even though recording the failure also fails
+    assert "Monthly video limit reached" in caplog.text
+    assert "could not save the failure record either" in caplog.text
+
+
 def test_next_fire_time_is_always_in_the_future(tmp_path):
     settings = Settings(tmp_path, copy.deepcopy(load_settings(ROOT / "config.yaml").raw))
     store = DashboardStore(settings, synchronous=True)

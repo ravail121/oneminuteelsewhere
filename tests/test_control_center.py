@@ -490,6 +490,20 @@ def test_stopped_before_approval_when_generated_story_has_a_blocking_warning(cc,
     assert not cc.inserts
 
 
+def test_drive_logs_and_survives_if_even_the_failure_record_cannot_be_saved(cc, monkeypatch, caplog):
+    # Reproduces what actually happened when the server's disk filled up: _drive() hit an
+    # error, then its own _update_run() call to record that error ALSO failed (no space
+    # left), which used to propagate uncaught — silently killing the worker thread and
+    # leaving the run frozen at whatever phase it last reached, forever, with zero trace.
+    connect(cc)
+    def flaky_update_run(*args, **kwargs):
+        raise OSError("No space left on device")
+    monkeypatch.setattr(cc.control_center, "_update_run", flaky_update_run)
+    with caplog.at_level("WARNING", logger="elsewhere.control_center"):
+        cc.control_center.start("k" * 64)  # must not raise even though recording the failure also fails
+    assert "could not save the failure record either" in caplog.text
+
+
 # ---- metadata and upload destination -----------------------------------------------------
 
 def test_metadata_includes_this_storys_own_cast_and_description_matches_the_story(cc):
