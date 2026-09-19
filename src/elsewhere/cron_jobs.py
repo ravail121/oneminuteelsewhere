@@ -110,13 +110,14 @@ class CronJobs:
                          project_id=None, error=message, manual=manual)
             LOG.warning("Slot %s (%s) did not start: %s", index, video_mode, message)
 
-    def run_daily_cleanup(self):
+    def run_cleanup(self):
         """Removes on-disk output for old finished projects — see DashboardStore.cleanup_old_
-        output. A small always-on server can otherwise fill its disk within days at 10 videos/
-        day; this keeps steady-state usage bounded without touching anything already uploaded."""
+        output. A small always-on server has room for barely more than a day of output at 10
+        videos/day, so this runs every few hours rather than once a day, to stay close to
+        steady-state instead of sawtoothing between "just cleaned" and "completely full"."""
         removed = self.control_center.store.cleanup_old_output()
         if removed:
-            LOG.info("Daily cleanup removed local output for %d old project(s)", len(removed))
+            LOG.info("Cleanup removed local output for %d old project(s)", len(removed))
 
     # ---- the real scheduler (production only; never auto-started under test) -------------
     def start_scheduler(self):
@@ -128,9 +129,9 @@ class CronJobs:
             hour, minute = (int(part) for part in time_str.split(":"))
             scheduler.add_job(self.fire, "cron", args=[index], hour=hour, minute=minute,
                               id=f"cron-slot-{index}", max_instances=1, coalesce=True, misfire_grace_time=3600)
-        # An off-peak slot between the 03:30 and 06:00 video runs.
-        scheduler.add_job(self.run_daily_cleanup, "cron", hour=5, minute=0,
-                          id="daily-cleanup", max_instances=1, coalesce=True, misfire_grace_time=3600)
+        # Every 4 hours rather than once a day — see run_cleanup's docstring.
+        scheduler.add_job(self.run_cleanup, "cron", hour="*/4", minute=0,
+                          id="output-cleanup", max_instances=1, coalesce=True, misfire_grace_time=3600)
         scheduler.start()
         self.scheduler = scheduler
         LOG.info("Cron job scheduler started (%d slots, %s, enabled=%s)",

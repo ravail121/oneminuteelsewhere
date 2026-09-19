@@ -443,6 +443,25 @@ def test_ambiguous_failure_blocks_regeneration_and_resume(studio):
     assert studio.calls == ["story_generation"]
 
 
+def test_a_second_failure_while_recording_the_first_is_logged_not_crashed(studio, monkeypatch, caplog):
+    # Reproduces what actually happened when the server's disk filled up: work() hit an
+    # exception, then its own recovery save() ALSO failed (no space left to write the "failed"
+    # status), which used to propagate uncaught and silently kill the worker thread, leaving
+    # the project stuck at busy=True forever with zero trace in the logs.
+    new(studio)
+    studio.ambiguous = True
+    real_save = studio.manager.save
+
+    def flaky_save(project):
+        if project.get("status") in {"failed", "cancelled"}:
+            raise OSError("No space left on device")
+        real_save(project)
+    monkeypatch.setattr(studio.manager, "save", flaky_save)
+    with caplog.at_level("CRITICAL", logger="elsewhere.dashboard_store"):
+        act(studio, "generate")  # must not raise even though recording the failure also failed
+    assert "could not record failure" in caplog.text
+
+
 def test_restart_recovers_progress_without_any_request(studio):
     project_id = new(studio)
     act(studio, "generate")

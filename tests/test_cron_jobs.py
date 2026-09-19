@@ -97,7 +97,7 @@ def test_fire_is_idempotent_for_the_same_day_and_slot(cc):  # noqa: F811
     assert len(list(cc.manager.output.glob("dashboard-*"))) == 1
 
 
-def test_run_daily_cleanup_removes_old_finished_project_output(cc):  # noqa: F811
+def test_run_cleanup_removes_old_finished_project_output(cc):  # noqa: F811
     connect(cc)
     cron = cron_of(cc)
     directory = cc.manager.output / "dashboard-old123"
@@ -105,7 +105,7 @@ def test_run_daily_cleanup_removes_old_finished_project_output(cc):  # noqa: F81
     old_created_at = (datetime.now(cron._tz()) - timedelta(days=30)).isoformat()
     save_json(directory / "dashboard-project.json",
              {"id": "old123", "status": "complete", "busy": False, "created_at": old_created_at})
-    cron.run_daily_cleanup()
+    cron.run_cleanup()
     assert not directory.exists()
 
 

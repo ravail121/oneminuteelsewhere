@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 import re
 import secrets
 import shutil
@@ -34,6 +35,8 @@ from .rubrics import (
 from .safety import SafetyError, local_checks, similarity
 from .scene_plan import narration_scenes, repair_scene_partition
 
+LOG = logging.getLogger("elsewhere.dashboard_store")
+
 STYLES = ["Cinematic realistic", "Illustrated cinematic", "Black-and-white noir", "Warm emotional cinema"]
 VOICES = ["cedar", "marin", "alloy", "coral", "sage", "ash"]
 DURATIONS = {"50-60": (50, 60), "52-60": (52, 60), "55-60": (55, 60)}
@@ -42,10 +45,12 @@ DURATIONS = {"50-60": (50, 60), "52-60": (52, 60), "55-60": (55, 60)}
 VIRAL_NICHES = ("Gaming",)
 # On-disk images/audio/video are the bulk of this app's disk use (a completed project's saved
 # API responses duplicate each generated image as base64, on top of the image file itself); a
-# small always-on server can fill up within days at 10 videos/day. Cleanup only ever removes
-# the local copy of an already-finished (complete or failed) project older than this — never
-# anything in progress, and never the YouTube upload itself, which is unaffected either way.
-OUTPUT_RETENTION_DAYS = 14
+# small always-on server has room for barely more than a single day of output at 10 videos/day
+# (learned the hard way: a 14-day window left the disk completely full within 2 days, silently
+# stalling a cron run mid-request with no space left even to record the failure). Cleanup only
+# ever removes the local copy of an already-finished (complete or failed) project older than
+# this — never anything in progress, and never the YouTube upload itself, unaffected either way.
+OUTPUT_RETENTION_DAYS = 1
 STAGES = [("story_saved", "Story saved"),
           ("image_prompts", "Preparing image prompts")]
 STAGES += [(f"image_{i:02d}", f"Image {i} of 8") for i in range(1, 9)]
@@ -541,20 +546,28 @@ class DashboardStore:
                 project.update(status=status, message=message, busy=False)
                 self.save(project)
         except Exception as error:  # noqa: BLE001 - worker errors must never expose credentials or SDK payloads
-            with self.lock:
-                project = self.load(project_id)
-                status = "cancelled" if isinstance(error, Cancelled) else "failed"
-                if isinstance(error, (Cancelled, BudgetExceeded, AmbiguousPaidRequest, SafetyError, LocalRequestError)):
-                    message = str(error)
-                elif isinstance(error, ValueError):
-                    message = "Local validation could not complete. Saved files are retained. Inspect local checks and duration before resuming."
-                else:
-                    message = "The operation stopped safely. No automatic retry was started; saved files and costs are retained."
-                project.update(status=status, busy=False, message=message)
-                for stage in project["stages"].values():
-                    if stage["status"] == "running":
-                        stage.update(status="failed", completed_at=utc_now(), message=message)
-                self.save(project)
+            try:
+                with self.lock:
+                    project = self.load(project_id)
+                    status = "cancelled" if isinstance(error, Cancelled) else "failed"
+                    if isinstance(error, (Cancelled, BudgetExceeded, AmbiguousPaidRequest, SafetyError, LocalRequestError)):
+                        message = str(error)
+                    elif isinstance(error, ValueError):
+                        message = "Local validation could not complete. Saved files are retained. Inspect local checks and duration before resuming."
+                    else:
+                        message = "The operation stopped safely. No automatic retry was started; saved files and costs are retained."
+                    project.update(status=status, busy=False, message=message)
+                    for stage in project["stages"].values():
+                        if stage["status"] == "running":
+                            stage.update(status="failed", completed_at=utc_now(), message=message)
+                    self.save(project)
+            except Exception as save_error:  # noqa: BLE001 - recording this recovery failure must never itself go uncaught
+                # If even saving the failure state fails (for example the disk was full), the
+                # project is left stuck at busy=True with no further trace otherwise — log the
+                # exception type only (never message/args, which may hold request content) so
+                # this is at least diagnosable instead of a silently dead worker thread.
+                LOG.critical("work(): could not record failure for project %s after %s: %s",
+                            project_id, type(error).__name__, type(save_error).__name__)
         finally:
             self.report(project_id)
 
