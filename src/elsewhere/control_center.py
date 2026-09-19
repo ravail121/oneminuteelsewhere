@@ -39,8 +39,14 @@ PER_VIDEO_SPEND_LIMIT_USD = 0.50  # The existing NewVideo default; never overrid
 STATS_CACHE_SECONDS = 15 * 60
 TERMINAL_PHASES = {"complete", "upload_failed", "failed", "cancelled", "interrupted"}
 # These specific warnings are advisory in the manual flow (a human can approve anyway),
-# but the one-click flow has no human to consult, so it treats them as stop conditions.
+# but the one-click flow has no human to consult, so it treats them as stop conditions —
+# after first trying a bounded number of fresh drafts (see MAX_GENERATION_ATTEMPTS below),
+# since a same-project regenerate is exactly what a human would do here anyway.
 STOP_WARNING_MARKERS = ("story category does not match the selected category", "Too similar to an earlier story")
+# Each retry is one more story_generation call (a few cents, well inside the per-video cost
+# ceiling below) and each one sees its own just-rejected draft as "prior" context, actively
+# steering away from it — worth a few tries before giving up and needing a human to look.
+MAX_GENERATION_ATTEMPTS = 3
 
 # Deliberately wide and mixed: physical objects, competitions, challenges, projects and events,
 # not just "a mysterious object turns up" every time. Matches recurring_cast.LIFE_VARIETY's own
@@ -415,19 +421,28 @@ class ControlCenter:
 
     def _drive(self, project_id):
         try:
-            self._update_run(project_id, phase="generating", message="Generating the story…")
-            project = self.store.load(project_id)
-            self.store.dispatch(project_id, "generate", project["version"])
-            self._wait_idle(project_id)
-            project = self.store.load(project_id)
-            if project["status"] != "story_ready":
-                self._update_run(project_id, phase="failed", message=f"Story generation did not complete: {project['message']}")
-                return
-            directory = self.store.revision_dir(project)
-            evaluation = read_json(directory / "draft-evaluation.json", {})
-            blocking = [w for w in evaluation.get("warnings", []) if any(marker in w for marker in STOP_WARNING_MARKERS)]
+            blocking = []
+            for attempt in range(1, MAX_GENERATION_ATTEMPTS + 1):
+                message = ("Generating the story…" if attempt == 1 else
+                          f"Previous draft was too similar to a recent story; generating a fresh "
+                          f"one (attempt {attempt} of {MAX_GENERATION_ATTEMPTS})…")
+                self._update_run(project_id, phase="generating", message=message)
+                project = self.store.load(project_id)
+                self.store.dispatch(project_id, "generate", project["version"])
+                self._wait_idle(project_id)
+                project = self.store.load(project_id)
+                if project["status"] != "story_ready":
+                    self._update_run(project_id, phase="failed", message=f"Story generation did not complete: {project['message']}")
+                    return
+                directory = self.store.revision_dir(project)
+                evaluation = read_json(directory / "draft-evaluation.json", {})
+                blocking = [w for w in evaluation.get("warnings", []) if any(marker in w for marker in STOP_WARNING_MARKERS)]
+                if not blocking:
+                    break
             if blocking:
-                self._update_run(project_id, phase="failed", message="Stopped before automatic approval: " + " | ".join(blocking))
+                self._update_run(project_id, phase="failed",
+                                 message=f"Stopped before automatic approval after {MAX_GENERATION_ATTEMPTS} attempts: "
+                                         + " | ".join(blocking))
                 return
             if (self._read_run(project_id) or {}).get("cancel_requested"):
                 self._update_run(project_id, phase="cancelled", message="Cancelled before production started.")

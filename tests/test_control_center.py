@@ -474,6 +474,9 @@ def test_paid_completed_stages_are_never_repeated_during_a_one_click_run(cc):
 
 
 def test_stopped_before_approval_when_generated_story_has_a_blocking_warning(cc, monkeypatch):
+    # A one-click run has no human to consult, so a blocking warning gets a bounded number of
+    # fresh-draft retries first (a same-project regenerate, exactly what a human would try) —
+    # this forces it on every attempt, so it should exhaust all of them and still fail cleanly.
     connect(cc)
     monkeypatch.setattr(control_center, "STOP_WARNING_MARKERS", ("Too similar to an earlier story",))
     original_evaluate = DashboardStore.evaluate
@@ -486,8 +489,33 @@ def test_stopped_before_approval_when_generated_story_has_a_blocking_warning(cc,
     run = cc.control_center.public_run(project_id)
     assert run["phase"] == "failed"
     assert "Too similar" in run["message"]
+    assert f"after {control_center.MAX_GENERATION_ATTEMPTS} attempts" in run["message"]
+    assert cc.calls.count("story_generation") == control_center.MAX_GENERATION_ATTEMPTS
     assert cc.manager.load(project_id)["status"] == "story_ready"  # nothing was approved or produced
     assert not cc.inserts
+
+
+def test_a_blocking_warning_on_the_first_attempt_auto_recovers_on_a_later_one(cc, monkeypatch):
+    # The actual point of the retry: a story that's too similar on one attempt often just
+    # needs a fresh draft, and a one-click run should get there without any manual click.
+    connect(cc)
+    monkeypatch.setattr(control_center, "STOP_WARNING_MARKERS", ("Too similar to an earlier story",))
+    original_evaluate = DashboardStore.evaluate
+    def block_only_the_first_revision(self, story, project, **kwargs):
+        result = original_evaluate(self, story, project, **kwargs)
+        # This fixture's mock story keeps a constant "setting" across every attempt, which
+        # would genuinely (and correctly) keep tripping this warning on its own; strip that
+        # out here so only the deliberately-forced, attempt-1-only warning below controls it.
+        result["warnings"] = [w for w in result["warnings"] if "Too similar" not in w]
+        if project["revision"] == 1:
+            result["warnings"].append("Too similar to an earlier story: main_object")
+        return result
+    monkeypatch.setattr(DashboardStore, "evaluate", block_only_the_first_revision)
+    project_id = cc.control_center.start("k" * 64)
+    run = cc.control_center.public_run(project_id)
+    assert run["phase"] == "complete"
+    assert cc.calls.count("story_generation") == 2
+    assert cc.manager.load(project_id)["status"] == "complete"
 
 
 def test_drive_logs_and_survives_if_even_the_failure_record_cannot_be_saved(cc, monkeypatch, caplog):
